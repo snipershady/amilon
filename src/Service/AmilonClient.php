@@ -22,22 +22,24 @@ declare(strict_types=1);
 
 namespace Amilon\Service;
 
+use Amilon\Api\AmilonApiInterface;
 use Amilon\Configuration\Configuration;
+use Amilon\Dto\Response\AccessTokenDto;
 use Amilon\Enum\Environment;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Amilon\Exception\AuthenticationException;
 
 /**
- * Entry point of the library: a resolved {@see Configuration} bound to a
- * ready-to-use HTTP transport.
+ * Entry point of the library: the version-less Amilon Web API surface.
  *
  * Do not instantiate this directly — {@see AmilonClientFactory} owns the wiring
- * (URL scoping, default headers, environment labelling). The resource-specific
- * operations (products, retailers, orders, …) will be added here / on
- * collaborators that consume {@see self::getHttpClient()} as the API surface is
- * built out.
+ * (URL scoping, default headers, environment labelling, picking the API
+ * revision). Each operation forwards to an {@see AmilonApiInterface} bound to
+ * {@see \Amilon\Api\ApiVersion::latest()}, so callers get the newest revision
+ * without naming it and always receive the shared response DTOs from
+ * {@see \Amilon\Dto\Response}.
  *
- * The instance holds no shared cache: one client owns one transport, and an OAuth
- * token, once introduced, will live for that transport's lifetime only.
+ * The instance holds no shared cache: one client owns its transports, and the
+ * OAuth token lives in memory for that client's lifetime only.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
@@ -48,8 +50,8 @@ final readonly class AmilonClient
      */
     public function __construct(
         private Configuration $configuration,
-        private HttpClientInterface $httpClient,
         private Environment $environment,
+        private AmilonApiInterface $api,
     ) {
     }
 
@@ -58,19 +60,21 @@ final readonly class AmilonClient
         return $this->configuration;
     }
 
-    /**
-     * The transport the factory scoped to {@see Configuration::$webDomain} and
-     * primed with the JSON `Accept` header. Consumed internally by the
-     * resource operations; exposed while the API surface is under construction.
-     */
-    public function getHttpClient(): HttpClientInterface
-    {
-        return $this->httpClient;
-    }
-
     public function getEnvironment(): Environment
     {
         return $this->environment;
+    }
+
+    /**
+     * The current OAuth access token for the configured credentials, fetched on
+     * first use and reused until it is (near) expired.
+     *
+     * @throws AuthenticationException when the SSO endpoint is unreachable, rejects
+     *                                 the credentials, or answers unusably
+     */
+    public function getToken(): AccessTokenDto
+    {
+        return $this->api->getToken();
     }
 
     /**
