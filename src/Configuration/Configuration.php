@@ -22,6 +22,7 @@ declare(strict_types=1);
 
 namespace Amilon\Configuration;
 
+use Amilon\Dto\CredentialDto;
 use Amilon\Exception\InvalidConfigurationException;
 
 /**
@@ -96,6 +97,18 @@ final readonly class Configuration
         }
 
         return self::fromArray($values);
+    }
+
+    /**
+     * Validate and normalise the credentials carried by a {@see CredentialDto}
+     * (the environment discriminator is not part of the configuration itself —
+     * {@see \Amilon\Service\AmilonClientFactory} keeps it on the client).
+     *
+     * @throws InvalidConfigurationException when a value is missing, blank or malformed
+     */
+    public static function fromCredentialDto(CredentialDto $credentialDto): self
+    {
+        return self::fromArray($credentialDto->toConfigurationArray());
     }
 
     /**
