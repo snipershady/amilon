@@ -1,0 +1,88 @@
+{
+    "name": "snipershady/amilon",
+    "description": "PHP client library for the Amilon API: order, manage and distribute digital gift cards at scale",
+    "keywords": [
+        "amilon",
+        "gift card",
+        "voucher",
+        "welfare",
+        "api client",
+        "rest"
+    ],
+    "homepage": "https://www.spinfo.it",
+    "type": "library",
+    "license": "GPL-2.0-only",
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "authors": [
+        {
+            "name": "Stefano Perrini",
+            "email": "perrini.stefano@gmail.com",
+            "homepage": "https://www.spinfo.it"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Amilon\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Amilon\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": "^8.3",
+        "symfony/dotenv": "^7.1"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.95.23",
+        "phpstan/phpstan": "^2.2.9",
+        "phpstan/phpstan-phpunit": "^2.0.18",
+        "phpstan/phpstan-strict-rules": "^2.0.12",
+        "phpunit/phpunit": "^12.5.34",
+        "rector/rector": "^2.6.4"
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit",
+        "rector": "vendor/bin/rector process",
+        "rector-dry": "vendor/bin/rector process --dry-run",
+        "cs-fix": "vendor/bin/php-cs-fixer fix",
+        "cs-check": "vendor/bin/php-cs-fixer fix --dry-run --diff",
+        "phpstan": "vendor/bin/phpstan analyse",
+        "quality": [
+            "@rector",
+            "@cs-fix"
+        ],
+        "quality-check": [
+            "@rector-dry",
+            "@cs-check",
+            "@phpstan"
+        ],
+        "post-install-cmd": [
+            "echo \"\n✅ Dependencies installed. Run 'composer quality' to apply code quality fixes.\n\""
+        ],
+        "post-update-cmd": [
+            "echo \"\n✅ Dependencies updated. Run 'composer quality' to apply code quality fixes.\n\""
+        ],
+        "test:unit": "vendor/bin/phpunit --testsuite unit",
+        "test:integration": "vendor/bin/phpunit --testsuite integration"
+    },
+    "scripts-descriptions": {
+        "test": "Run the whole PHPUnit suite (integration tests skip without live Amilon credentials)",
+        "rector": "Run Rector to refactor code",
+        "rector-dry": "Run Rector in dry-run mode (preview changes without applying)",
+        "cs-fix": "Fix code style issues with PHP-CS-Fixer",
+        "cs-check": "Check code style without making changes",
+        "phpstan": "Run PHPStan static analysis",
+        "quality": "Run all quality tools (Rector + PHP-CS-Fixer)",
+        "quality-check": "Check code quality without making changes (dry-run mode)",
+        "test:unit": "Run the unit suite only: no I/O, runnable anywhere",
+        "test:integration": "Run the integration suite against the Amilon sandbox (needs AMILON_* env vars)"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "preferred-install": "dist"
+    }
+}

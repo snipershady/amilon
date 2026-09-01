@@ -1,0 +1,60 @@
+includes:
+    # phpstan-strict-rules: the stricter-than-default ruleset (loose comparisons,
+    # missing typehints, dynamic calls, boolean expressions, switch/case, etc.).
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+    # phpstan-phpunit: understands PHPUnit assertions/mocks and adds PHPUnit-aware rules.
+    - vendor/phpstan/phpstan-phpunit/extension.neon
+    - vendor/phpstan/phpstan-phpunit/rules.neon
+    # Opt-in future rules (will become the default in PHPStan 3.0). Enabling this
+    # is the most aggressive setting; disable it if a `composer update` ever turns
+    # CI red on rules that are still being stabilised upstream.
+    - phar://phpstan.phar/conf/bleedingEdge.neon
+
+parameters:
+    # `max` == the highest numbered level PHPStan ships (currently 10): every value
+    # is checked, `mixed` is treated as an explicit type that must be narrowed.
+    level: max
+
+    paths:
+        - src/
+        - tests/
+
+    # --- Extra strictness on top of the level / strict-rules -------------------
+
+    # Re-verify PHPDoc types against what PHPStan can actually prove instead of
+    # trusting them blindly: catches PHPDoc that has drifted from the code.
+    treatPhpDocTypesAsCertain: false
+
+    # A callable/closure type without a described signature (`callable` instead of
+    # `callable(int): string`) is an error.
+    checkMissingCallableSignature: true
+
+    # "Benevolent" union types (produced by e.g. array access on loosely-typed
+    # arrays) are treated as real unions and must be handled explicitly.
+    checkBenevolentUnionTypes: true
+
+    # Report public/protected methods whose declared return type is wider than
+    # what they actually return.
+    checkTooWideReturnTypesInProtectedAndPublicMethods: true
+
+    # Every non-nullable property must be assigned in the constructor (or be
+    # readonly + promoted). Guards against half-constructed objects.
+    checkUninitializedProperties: true
+
+    # PHPDoc hygiene: a widened `@var` (e.g. `@var mixed`) and "maybe" types in
+    # property/method PHPDoc are reported.
+    reportAnyTypeWideningInVarTag: true
+    reportMaybesInPropertyPhpDocTypes: true
+    reportMaybesInMethodSignatures: true
+
+    # A condition that is always true/false in the *last* branch is still a bug.
+    reportAlwaysTrueInLastCondition: true
+
+    # Enforce parameter/return type compatibility when a static method is passed
+    # as a `[Class::class, 'method']` callable.
+    reportStaticMethodSignatures: true
+
+    # No suppressions: src/ AND tests/ are held at full strictness. Add a
+    # narrowly-scoped `ignoreErrors` entry (identifier + path) only when a test
+    # deliberately asserts on a statically-provable literal and there is no
+    # cleaner way to express it.

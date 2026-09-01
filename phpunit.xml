@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         failOnWarning="true"
+         failOnRisky="true"
+         failOnNotice="true"
+         failOnDeprecation="true">
+
+    <testsuites>
+        <!-- Pure unit tests: no I/O, runnable anywhere. -->
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+
+        <!--
+            Integration tests: they exercise the client against the real Amilon
+            sandbox API. They skip themselves when the AMILON_* credentials are
+            not present in the environment, so a plain `composer test` still
+            works with no network around.
+
+            CI runs this suite with the fail-on-skipped flag when secrets are
+            configured, so a silently missing endpoint turns the build red
+            instead of green.
+        -->
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory suffix=".php">src</directory>
+        </include>
+    </source>
+
+</phpunit>
