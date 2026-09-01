@@ -20,16 +20,26 @@ declare(strict_types=1);
  * Boston, MA 02110-1301 USA.
  */
 
-namespace Amilon\Enum;
+namespace Amilon\Dto\Response;
 
 /**
- * A market Amilon serves, as the `culture` path segment its catalogue endpoints
- * expect (`contracts/{id}/{culture}/products`).
+ * One issued gift card in an {@see OrderDto}: the redeemable link and its
+ * validity window, plus which product and retailer it belongs to.
  *
- * @author Stefano Perrini <perrini.stefano@gmail.com>
+ * A flat, version-shared projection of an entry in the order-create response's
+ * `Vouchers` array. Dates are `null` when Amilon omits them or sends something
+ * unparseable.
+ *
+ * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
-enum CountryEnum: string
+final readonly class VoucherDto
 {
-    case IT = 'it-IT';
-    case ES = 'es-ES';
+    public function __construct(
+        public string $productId,
+        public string $retailerId,
+        public string $voucherLink,
+        public ?\DateTimeImmutable $validityStartDate,
+        public ?\DateTimeImmutable $validityEndDate,
+    ) {
+    }
 }

@@ -23,15 +23,28 @@ declare(strict_types=1);
 namespace Amilon\Api\V1;
 
 use Amilon\Api\AmilonApiInterface;
+use Amilon\Api\V1\Catalog\ProductApi;
+use Amilon\Api\V1\Catalog\RetailerApi;
+use Amilon\Api\V1\Contract\ContractApi;
+use Amilon\Api\V1\Order\OrderApi;
 use Amilon\Auth\TokenProvider;
+use Amilon\Dto\Request\CreateOrderRequestDto;
 use Amilon\Dto\Response\AccessTokenDto;
+use Amilon\Dto\Response\ContractInfoDto;
+use Amilon\Dto\Response\OrderDto;
+use Amilon\Dto\Response\ProductCollectionDto;
+use Amilon\Dto\Response\RetailerCollectionDto;
+use Amilon\Enum\CountryEnum;
 
 /**
  * {@see AmilonApiInterface} implementation for revision 1 of the Amilon Web API
  * (`.../b2bwebapi/v1/`).
  *
- * This class is where V1's endpoint knowledge lives — paths, verbs, payload
- * shapes. It is selected by {@see \Amilon\Service\AmilonClientFactory} while
+ * A thin façade: it owns one collaborator per resource area ({@see ProductApi},
+ * {@see RetailerApi}, …) plus the {@see TokenProvider}, and forwards each
+ * operation to the right one. Endpoint knowledge — paths, verbs, payload shapes —
+ * lives in those collaborators. It is selected by
+ * {@see \Amilon\Service\AmilonClientFactory} while
  * {@see \Amilon\Api\ApiVersion::latest()} points at
  * {@see \Amilon\Api\ApiVersion::V1}; callers never name it.
  *
@@ -41,11 +54,46 @@ final readonly class V1Api implements AmilonApiInterface
 {
     public function __construct(
         private TokenProvider $tokenProvider,
+        private ProductApi $productApi,
+        private RetailerApi $retailerApi,
+        private OrderApi $orderApi,
+        private ContractApi $contractApi,
     ) {
     }
 
+    #[\Override]
     public function getToken(): AccessTokenDto
     {
         return $this->tokenProvider->currentToken();
+    }
+
+    #[\Override]
+    public function getProducts(CountryEnum $countryEnum): ProductCollectionDto
+    {
+        return $this->productApi->list($countryEnum);
+    }
+
+    #[\Override]
+    public function getRetailers(CountryEnum $countryEnum): RetailerCollectionDto
+    {
+        return $this->retailerApi->list($countryEnum);
+    }
+
+    #[\Override]
+    public function makeOrder(CreateOrderRequestDto $createOrderRequestDto): OrderDto
+    {
+        return $this->orderApi->create($createOrderRequestDto);
+    }
+
+    #[\Override]
+    public function getOrderInfo(string $externalOrderId): OrderDto
+    {
+        return $this->orderApi->complete($externalOrderId);
+    }
+
+    #[\Override]
+    public function getContractInfo(): ContractInfoDto
+    {
+        return $this->contractApi->info();
     }
 }

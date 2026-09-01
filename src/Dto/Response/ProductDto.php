@@ -20,16 +20,28 @@ declare(strict_types=1);
  * Boston, MA 02110-1301 USA.
  */
 
-namespace Amilon\Enum;
+namespace Amilon\Dto\Response;
 
 /**
- * A market Amilon serves, as the `culture` path segment its catalogue endpoints
- * expect (`contracts/{id}/{culture}/products`).
+ * One purchasable gift-card product in an Amilon catalogue.
  *
- * @author Stefano Perrini <perrini.stefano@gmail.com>
+ * A flat, version-shared projection of an entry in the `contracts/{id}/{country}/products`
+ * response. It carries no behaviour and does not validate: the per-revision
+ * mapper ({@see \Amilon\Api\V1\Catalog\ProductMapper}) is what turns the
+ * loosely-typed API row into these guaranteed scalars.
+ *
+ * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
-enum CountryEnum: string
+final readonly class ProductDto
 {
-    case IT = 'it-IT';
-    case ES = 'es-ES';
+    public function __construct(
+        public string $productCode,
+        public string $merchantCode,
+        public string $name,
+        public float $price,
+        public string $imageUrl,
+        public bool $active,
+        public bool $visible,
+    ) {
+    }
 }

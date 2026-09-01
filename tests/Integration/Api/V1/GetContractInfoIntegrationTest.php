@@ -25,27 +25,18 @@ namespace Amilon\Tests\Integration\Api\V1;
 use Amilon\Tests\Integration\AbstractIntegrationTestCase;
 
 /**
- * Exercises {@see \Amilon\Service\AmilonClient::getToken()} against the real
- * Amilon STAGING SSO endpoint.
+ * Exercises {@see \Amilon\Service\AmilonClient::getContractInfo()} against the
+ * real Amilon STAGING API.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
-final class GetTokenIntegrationTest extends AbstractIntegrationTestCase
+final class GetContractInfoIntegrationTest extends AbstractIntegrationTestCase
 {
-    public function testItObtainsAUsableAccessTokenFromTheSandbox(): void
+    public function testItReturnsTheContractBalance(): void
     {
-        $token = $this->liveStagingClient()->getToken();
+        $info = $this->liveStagingClient()->getContractInfo();
 
-        $this->assertNotSame('', $token->accessToken);
-        $this->assertFalse($token->isExpired());
-        $this->assertGreaterThan(time(), $token->expiresAt->getTimestamp());
-        $this->assertStringEndsWith(' ' . $token->accessToken, $token->authorizationHeader());
-    }
-
-    public function testASecondCallReusesTheCachedToken(): void
-    {
-        $client = $this->liveStagingClient();
-
-        $this->assertSame($client->getToken()->accessToken, $client->getToken()->accessToken);
+        $this->assertGreaterThanOrEqual(0.0, $info->currentAmount);
+        $this->assertInstanceOf(\DateTimeImmutable::class, $info->lastUpdate, 'the sandbox contract is expected to carry a last-update timestamp');
     }
 }

@@ -24,11 +24,22 @@ namespace Amilon\Service;
 
 use Amilon\Api\AmilonApiInterface;
 use Amilon\Api\ApiVersion;
+use Amilon\Api\V1\Catalog\ProductApi;
+use Amilon\Api\V1\Catalog\ProductMapper;
+use Amilon\Api\V1\Catalog\RetailerApi;
+use Amilon\Api\V1\Catalog\RetailerMapper;
+use Amilon\Api\V1\Contract\ContractApi;
+use Amilon\Api\V1\Contract\ContractMapper;
+use Amilon\Api\V1\Order\OrderApi;
+use Amilon\Api\V1\Order\OrderMapper;
+use Amilon\Api\V1\Order\OrderRequestMapper;
 use Amilon\Api\V1\V1Api;
 use Amilon\Auth\TokenProvider;
 use Amilon\Configuration\Configuration;
 use Amilon\Dto\CredentialDto;
 use Amilon\Exception\InvalidConfigurationException;
+use Amilon\Http\AmilonHttpExecutor;
+use Amilon\Http\AmilonResponseParser;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use TypeIdentifier\Service\EffectivePrimitiveTypeIdentifierService;
@@ -87,14 +98,44 @@ final class AmilonClientFactory
         HttpClientInterface $httpClient,
     ): AmilonApiInterface {
         $types = new EffectivePrimitiveTypeIdentifierService();
+        $responseParser = new AmilonResponseParser($types);
 
         return match ($apiVersion) {
-            ApiVersion::V1 => new V1Api(new TokenProvider(
-                self::scopedTo($httpClient, $configuration->authDomain),
-                $configuration,
-                $types,
-            )),
+            ApiVersion::V1 => self::buildV1Api($configuration, $httpClient, $types, $responseParser),
         };
+    }
+
+    private static function buildV1Api(
+        Configuration $configuration,
+        HttpClientInterface $httpClient,
+        EffectivePrimitiveTypeIdentifierService $effectivePrimitiveTypeIdentifierService,
+        AmilonResponseParser $amilonResponseParser,
+    ): V1Api {
+        $tokenProvider = new TokenProvider(
+            self::scopedTo($httpClient, $configuration->authDomain),
+            $configuration,
+            $amilonResponseParser,
+            $effectivePrimitiveTypeIdentifierService,
+        );
+
+        $executor = new AmilonHttpExecutor(
+            self::scopedTo($httpClient, $configuration->webDomain),
+            $tokenProvider,
+            $amilonResponseParser,
+        );
+
+        return new V1Api(
+            $tokenProvider,
+            new ProductApi($executor, $configuration, new ProductMapper($effectivePrimitiveTypeIdentifierService)),
+            new RetailerApi($executor, $configuration, new RetailerMapper($effectivePrimitiveTypeIdentifierService)),
+            new OrderApi(
+                $executor,
+                $configuration,
+                new OrderRequestMapper(),
+                new OrderMapper($effectivePrimitiveTypeIdentifierService),
+            ),
+            new ContractApi($executor, $configuration, new ContractMapper($effectivePrimitiveTypeIdentifierService)),
+        );
     }
 
     /**

@@ -24,8 +24,15 @@ namespace Amilon\Service;
 
 use Amilon\Api\AmilonApiInterface;
 use Amilon\Configuration\Configuration;
+use Amilon\Dto\Request\CreateOrderRequestDto;
 use Amilon\Dto\Response\AccessTokenDto;
+use Amilon\Dto\Response\ContractInfoDto;
+use Amilon\Dto\Response\OrderDto;
+use Amilon\Dto\Response\ProductCollectionDto;
+use Amilon\Dto\Response\RetailerCollectionDto;
+use Amilon\Enum\CountryEnum;
 use Amilon\Enum\Environment;
+use Amilon\Exception\ApiRequestException;
 use Amilon\Exception\AuthenticationException;
 
 /**
@@ -75,6 +82,67 @@ final readonly class AmilonClient
     public function getToken(): AccessTokenDto
     {
         return $this->api->getToken();
+    }
+
+    /**
+     * The gift-card products the contract can sell in $country.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the catalogue call itself fails
+     */
+    public function getProducts(CountryEnum $countryEnum): ProductCollectionDto
+    {
+        return $this->api->getProducts($countryEnum);
+    }
+
+    /**
+     * The retailers (brands) available to the contract in $country.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the catalogue call itself fails
+     */
+    public function getRetailers(CountryEnum $countryEnum): RetailerCollectionDto
+    {
+        return $this->api->getRetailers($countryEnum);
+    }
+
+    /**
+     * Place an order for the products and quantities the request carries.
+     *
+     * This spends real money when the client was built from
+     * {@see Environment::PRODUCTION} credentials — gate the call on
+     * {@see self::isProduction()} where that matters.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when Amilon rejects or cannot fulfil the order
+     */
+    public function makeOrder(CreateOrderRequestDto $createOrderRequestDto): OrderDto
+    {
+        return $this->api->makeOrder($createOrderRequestDto);
+    }
+
+    /**
+     * Read back an order previously placed under $externalOrderId — its current
+     * status and the vouchers issued for it.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the order is unknown or the call fails
+     */
+    public function getOrderInfo(string $externalOrderId): OrderDto
+    {
+        return $this->api->getOrderInfo($externalOrderId);
+    }
+
+    /**
+     * The configured contract's spendable balance and when Amilon last
+     * recomputed it.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the call fails
+     */
+    public function getContractInfo(): ContractInfoDto
+    {
+        return $this->api->getContractInfo();
     }
 
     /**

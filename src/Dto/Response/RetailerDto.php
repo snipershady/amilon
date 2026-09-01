@@ -20,16 +20,26 @@ declare(strict_types=1);
  * Boston, MA 02110-1301 USA.
  */
 
-namespace Amilon\Enum;
+namespace Amilon\Dto\Response;
 
 /**
- * A market Amilon serves, as the `culture` path segment its catalogue endpoints
- * expect (`contracts/{id}/{culture}/products`).
+ * One retailer (brand) whose gift cards a contract can sell in a given country.
  *
- * @author Stefano Perrini <perrini.stefano@gmail.com>
+ * A flat, version-shared projection of an entry in the
+ * `contracts/{id}/{country}/retailers` response. Behaviour-free and unvalidated;
+ * {@see \Amilon\Api\V1\Catalog\RetailerMapper} produces it from the raw API row.
+ *
+ * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
-enum CountryEnum: string
+final readonly class RetailerDto
 {
-    case IT = 'it-IT';
-    case ES = 'es-ES';
+    public function __construct(
+        public string $retailerId,
+        public string $name,
+        public string $shortDescription,
+        public string $imageUrl,
+        public int $codeValidityMonths,
+        public string $countryIsoAlpha3,
+    ) {
+    }
 }

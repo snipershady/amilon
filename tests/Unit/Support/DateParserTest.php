@@ -20,32 +20,31 @@ declare(strict_types=1);
  * Boston, MA 02110-1301 USA.
  */
 
-namespace Amilon\Tests\Integration\Api\V1;
+namespace Amilon\Tests\Unit\Support;
 
-use Amilon\Tests\Integration\AbstractIntegrationTestCase;
+use Amilon\Support\DateParser;
+use Amilon\Tests\AbstractTestCase;
 
 /**
- * Exercises {@see \Amilon\Service\AmilonClient::getToken()} against the real
- * Amilon STAGING SSO endpoint.
- *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
-final class GetTokenIntegrationTest extends AbstractIntegrationTestCase
+final class DateParserTest extends AbstractTestCase
 {
-    public function testItObtainsAUsableAccessTokenFromTheSandbox(): void
+    public function testItParsesAnIso8601Timestamp(): void
     {
-        $token = $this->liveStagingClient()->getToken();
+        $parsed = DateParser::nullable('2026-03-15T10:30:00+00:00');
 
-        $this->assertNotSame('', $token->accessToken);
-        $this->assertFalse($token->isExpired());
-        $this->assertGreaterThan(time(), $token->expiresAt->getTimestamp());
-        $this->assertStringEndsWith(' ' . $token->accessToken, $token->authorizationHeader());
+        $this->assertInstanceOf(\DateTimeImmutable::class, $parsed);
+        $this->assertSame((new \DateTimeImmutable('2026-03-15T10:30:00+00:00'))->getTimestamp(), $parsed->getTimestamp());
     }
 
-    public function testASecondCallReusesTheCachedToken(): void
+    public function testAnEmptyStringIsNull(): void
     {
-        $client = $this->liveStagingClient();
+        $this->assertNotInstanceOf(\DateTimeImmutable::class, DateParser::nullable(''));
+    }
 
-        $this->assertSame($client->getToken()->accessToken, $client->getToken()->accessToken);
+    public function testAnUnparseableStringIsNull(): void
+    {
+        $this->assertNotInstanceOf(\DateTimeImmutable::class, DateParser::nullable('not-a-date'));
     }
 }

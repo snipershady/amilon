@@ -35,22 +35,21 @@ namespace Amilon\Exception;
  */
 final class AuthenticationException extends \RuntimeException implements AmilonExceptionInterface
 {
-    public static function transportFailure(\Throwable $throwable): self
+    /**
+     * The token call reached the SSO endpoint but it failed — unreachable host,
+     * non-2xx (typically `invalid_grant` on bad credentials), or an unreadable
+     * body. The underlying {@see ApiRequestException} is chained and its message
+     * carried through.
+     */
+    public static function fromRequestFailure(ApiRequestException $apiRequestException): self
     {
-        return new self('Could not reach the Amilon SSO endpoint to obtain an access token.', 0, $throwable);
+        return new self(sprintf('Could not obtain an Amilon access token: %s', $apiRequestException->getMessage()), 0, $apiRequestException);
     }
 
-    public static function httpError(int $status, string $detail = ''): self
-    {
-        $message = sprintf('The Amilon SSO endpoint rejected the token request with HTTP %d.', $status);
-
-        if ('' !== $detail) {
-            $message .= sprintf(' %s', $detail);
-        }
-
-        return new self($message);
-    }
-
+    /**
+     * The SSO endpoint answered 2xx but the body is not a usable token
+     * (e.g. no `access_token`).
+     */
     public static function malformedResponse(string $reason): self
     {
         return new self(sprintf('The Amilon SSO token response could not be used: %s.', $reason));

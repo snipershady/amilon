@@ -24,8 +24,9 @@ namespace Amilon\Auth;
 
 use Amilon\Configuration\Configuration;
 use Amilon\Dto\Response\AccessTokenDto;
+use Amilon\Exception\ApiRequestException;
 use Amilon\Exception\AuthenticationException;
-use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
+use Amilon\Http\AmilonResponseParser;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use TypeIdentifier\Service\EffectivePrimitiveTypeIdentifierServiceInterface;
@@ -37,9 +38,9 @@ use TypeIdentifier\Service\EffectivePrimitiveTypeIdentifierServiceInterface;
  *
  * This is the library's only piece of mutable state and it is deliberately not
  * shared: the token lives in memory for the lifetime of the client that owns
- * this provider, with no external cache. The resource operations added later ask
- * it for a bearer value; {@see \Amilon\Service\AmilonClient::getToken()} returns
- * the token DTO directly.
+ * this provider, with no external cache. {@see \Amilon\Http\AmilonHttpExecutor}
+ * asks it for a bearer value on every resource call;
+ * {@see \Amilon\Service\AmilonClient::getToken()} returns the token DTO directly.
  *
  * The injected HTTP client must be scoped to the SSO base URL
  * ({@see Configuration::$authDomain}); this class only appends `connect/token`.
@@ -53,6 +54,7 @@ final class TokenProvider
     public function __construct(
         private readonly HttpClientInterface $ssoHttpClient,
         private readonly Configuration $configuration,
+        private readonly AmilonResponseParser $responseParser,
         private readonly EffectivePrimitiveTypeIdentifierServiceInterface $types,
     ) {
     }
@@ -99,35 +101,13 @@ final class TokenProvider
                 ],
             ]);
 
-            $statusCode = $response->getStatusCode();
-            $payload = $response->toArray(throw: false);
+            $payload = $this->responseParser->toArray($response, 'POST', 'connect/token');
         } catch (TransportExceptionInterface $transportException) {
-            throw AuthenticationException::transportFailure($transportException);
-        } catch (DecodingExceptionInterface) {
-            throw AuthenticationException::malformedResponse('the response body is not valid JSON');
-        }
-
-        if ($statusCode < 200 || $statusCode >= 300) {
-            throw AuthenticationException::httpError($statusCode, $this->describeError($payload));
+            throw AuthenticationException::fromRequestFailure(ApiRequestException::transportFailure('POST', 'connect/token', $transportException));
+        } catch (ApiRequestException $apiRequestException) {
+            throw AuthenticationException::fromRequestFailure($apiRequestException);
         }
 
         return AccessTokenDto::fromResponsePayload($payload, $this->types);
-    }
-
-    /**
-     * Best-effort human-readable reason from an OAuth error body
-     * (`{"error":"invalid_grant","error_description":"..."}`).
-     *
-     * @param array<array-key, mixed> $payload
-     */
-    private function describeError(array $payload): string
-    {
-        $description = $this->types->getStringValueFromArray('error_description', $payload, trim: true);
-
-        if ('' !== $description) {
-            return $description;
-        }
-
-        return $this->types->getStringValueFromArray('error', $payload, trim: true);
     }
 }

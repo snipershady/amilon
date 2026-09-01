@@ -20,16 +20,23 @@ declare(strict_types=1);
  * Boston, MA 02110-1301 USA.
  */
 
-namespace Amilon\Enum;
+namespace Amilon\Dto\Response;
 
 /**
- * A market Amilon serves, as the `culture` path segment its catalogue endpoints
- * expect (`contracts/{id}/{culture}/products`).
+ * The result of {@see \Amilon\Service\AmilonClient::getContractInfo()}: the
+ * contract's spendable balance and when Amilon last recomputed it.
  *
- * @author Stefano Perrini <perrini.stefano@gmail.com>
+ * `currentAmount` is the balance orders draw down; `lastUpdate` is `null` when
+ * Amilon omits or sends an unparseable timestamp.
+ *
+ * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
-enum CountryEnum: string
+final readonly class ContractInfoDto
 {
-    case IT = 'it-IT';
-    case ES = 'es-ES';
+    public function __construct(
+        public string $contractId,
+        public float $currentAmount,
+        public ?\DateTimeImmutable $lastUpdate,
+    ) {
+    }
 }

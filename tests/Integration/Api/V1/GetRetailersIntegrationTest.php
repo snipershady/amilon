@@ -22,30 +22,28 @@ declare(strict_types=1);
 
 namespace Amilon\Tests\Integration\Api\V1;
 
+use Amilon\Enum\CountryEnum;
 use Amilon\Tests\Integration\AbstractIntegrationTestCase;
 
 /**
- * Exercises {@see \Amilon\Service\AmilonClient::getToken()} against the real
- * Amilon STAGING SSO endpoint.
+ * Exercises {@see \Amilon\Service\AmilonClient::getRetailers()} against the real
+ * Amilon STAGING catalogue.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
-final class GetTokenIntegrationTest extends AbstractIntegrationTestCase
+final class GetRetailersIntegrationTest extends AbstractIntegrationTestCase
 {
-    public function testItObtainsAUsableAccessTokenFromTheSandbox(): void
+    public function testItListsRetailersForItaly(): void
     {
-        $token = $this->liveStagingClient()->getToken();
+        $retailers = $this->liveStagingClient()->getRetailers(CountryEnum::IT);
 
-        $this->assertNotSame('', $token->accessToken);
-        $this->assertFalse($token->isExpired());
-        $this->assertGreaterThan(time(), $token->expiresAt->getTimestamp());
-        $this->assertStringEndsWith(' ' . $token->accessToken, $token->authorizationHeader());
-    }
+        $this->assertFalse($retailers->isEmpty(), 'the STAGING IT catalogue is expected to expose retailers');
+        $this->assertCount($retailers->count(), $retailers->all());
 
-    public function testASecondCallReusesTheCachedToken(): void
-    {
-        $client = $this->liveStagingClient();
-
-        $this->assertSame($client->getToken()->accessToken, $client->getToken()->accessToken);
+        foreach ($retailers as $retailer) {
+            $this->assertNotSame('', $retailer->retailerId);
+            $this->assertNotSame('', $retailer->name);
+            $this->assertGreaterThanOrEqual(0, $retailer->codeValidityMonths);
+        }
     }
 }

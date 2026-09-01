@@ -20,32 +20,34 @@ declare(strict_types=1);
  * Boston, MA 02110-1301 USA.
  */
 
-namespace Amilon\Tests\Integration\Api\V1;
-
-use Amilon\Tests\Integration\AbstractIntegrationTestCase;
+namespace Amilon\Support;
 
 /**
- * Exercises {@see \Amilon\Service\AmilonClient::getToken()} against the real
- * Amilon STAGING SSO endpoint.
+ * Parses the date strings Amilon returns (ISO 8601, e.g. `2026-03-15T10:30:00Z`)
+ * into a `\DateTimeImmutable`.
+ *
+ * Used by the response mappers. Response-side dates are best-effort: an absent
+ * (`''`) or unparseable value yields `null` rather than failing the whole
+ * mapping, so a stray field cannot break an otherwise good response.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
-final class GetTokenIntegrationTest extends AbstractIntegrationTestCase
+final class DateParser
 {
-    public function testItObtainsAUsableAccessTokenFromTheSandbox(): void
+    private function __construct()
     {
-        $token = $this->liveStagingClient()->getToken();
-
-        $this->assertNotSame('', $token->accessToken);
-        $this->assertFalse($token->isExpired());
-        $this->assertGreaterThan(time(), $token->expiresAt->getTimestamp());
-        $this->assertStringEndsWith(' ' . $token->accessToken, $token->authorizationHeader());
     }
 
-    public function testASecondCallReusesTheCachedToken(): void
+    public static function nullable(string $value): ?\DateTimeImmutable
     {
-        $client = $this->liveStagingClient();
+        if ('' === $value) {
+            return null;
+        }
 
-        $this->assertSame($client->getToken()->accessToken, $client->getToken()->accessToken);
+        try {
+            return new \DateTimeImmutable($value);
+        } catch (\DateMalformedStringException) {
+            return null;
+        }
     }
 }
