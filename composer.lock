@@ -4,8 +4,63 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ffc23492693da16fedf82597b2f1da4d",
+    "content-hash": "f78947b63410e559d7d1e775b5131dfb",
     "packages": [
+        {
+            "name": "snipershady/typeidentifier",
+            "version": "v2.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/snipershady/type-identifier.git",
+                "reference": "543dca2d646be9c7319f1b1189b19e5fece02d4f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/snipershady/type-identifier/zipball/543dca2d646be9c7319f1b1189b19e5fece02d4f",
+                "reference": "543dca2d646be9c7319f1b1189b19e5fece02d4f",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.3"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.95.23",
+                "phpstan/phpstan": "^2.2.9",
+                "phpstan/phpstan-phpunit": "^2.0.18",
+                "phpstan/phpstan-strict-rules": "^2.0.12",
+                "phpunit/phpunit": "^12.5.34",
+                "rector/rector": "^2.6.4"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "TypeIdentifier\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "GPL-2.0-only"
+            ],
+            "authors": [
+                {
+                    "name": "Stefano Perrini",
+                    "email": "perrini.stefano@gmail.com",
+                    "homepage": "https://www.spinfo.it"
+                }
+            ],
+            "description": "Free service to identify primitive type of a variable",
+            "homepage": "https://www.spinfo.it",
+            "keywords": [
+                "primitive",
+                "strict type",
+                "type"
+            ],
+            "support": {
+                "issues": "https://github.com/snipershady/type-identifier/issues",
+                "source": "https://github.com/snipershady/type-identifier/tree/v2.0.1"
+            },
+            "time": "2026-08-29T15:38:06+00:00"
+        },
         {
             "name": "symfony/dotenv",
             "version": "v7.4.18",
@@ -4633,6 +4688,93 @@
                 }
             ],
             "time": "2026-07-28T07:33:02+00:00"
+        },
+        {
+            "name": "symfony/var-dumper",
+            "version": "v7.4.18",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/var-dumper.git",
+                "reference": "e088da50b813f32473a76871616cbb8fa54653a8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/var-dumper/zipball/e088da50b813f32473a76871616cbb8fa54653a8",
+                "reference": "e088da50b813f32473a76871616cbb8fa54653a8",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2",
+                "symfony/deprecation-contracts": "^2.5|^3",
+                "symfony/polyfill-mbstring": "~1.0"
+            },
+            "conflict": {
+                "symfony/console": "<6.4"
+            },
+            "require-dev": {
+                "symfony/console": "^6.4|^7.0|^8.0",
+                "symfony/http-kernel": "^6.4|^7.0|^8.0",
+                "symfony/process": "^6.4|^7.0|^8.0",
+                "symfony/uid": "^6.4|^7.0|^8.0",
+                "twig/twig": "^3.12|^4.0"
+            },
+            "bin": [
+                "Resources/bin/var-dump-server"
+            ],
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "Resources/functions/dump.php"
+                ],
+                "psr-4": {
+                    "Symfony\\Component\\VarDumper\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Nicolas Grekas",
+                    "email": "p@tchwork.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Provides mechanisms for walking through any arbitrary PHP variable",
+            "homepage": "https://symfony.com",
+            "keywords": [
+                "debug",
+                "dump"
+            ],
+            "support": {
+                "source": "https://github.com/symfony/var-dumper/tree/v7.4.18"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-08-30T20:10:52+00:00"
         },
         {
             "name": "theseer/tokenizer",
