@@ -44,19 +44,26 @@ $client = AmilonClientFactory::create(new CredentialDto(
     clientSecret: $secrets->get('amilon_client_secret'),
     authDomain:   'https://b2bstg-sso.amilon.eu/',
     webDomain:    'https://b2bstg-webapi.amilon.eu/b2bwebapi/v1/',
+    webDomainV2:  'https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/',
     contractId:   '1ab2c3d4-567e-4b0c-b8da-a3ed94ae6392',
     environment:  Environment::STAGING,
 ));
 
-// browse the catalogue
-$products = $client->getProducts(CountryEnum::IT);
-foreach ($products as $product) {
-    echo $product->productCode, ' ', $product->name, ' ', $product->price, PHP_EOL;
+// browse the catalogue: one entry per merchant, each with a list of denominations
+$merchants = $client->getDenominations(CountryEnum::IT);
+foreach ($merchants as $merchant) {
+    foreach ($merchant->denominations as $denomination) {
+        // denomination shape: ->isFixed() / ->isVariable() / ->hasContractPriceOverride()
+        $price = $denomination->prices[0]->price ?? $denomination->rangeMin;
+        echo $merchant->code, ' ', $merchant->name, ' ', $price, PHP_EOL;
+    }
 }
 
-// place an order for one of them
+// place an order: identify the item by merchant code + chosen face value
+$first = $merchants->all()[0];
+$price = $first->denominations[0]->prices[0]->price ?? $first->denominations[0]->rangeMin;
 $order = $client->makeOrder(
-    CreateOrderRequestDto::singleLine('my-order-001', $products->all()[0]->productCode, 1),
+    CreateOrderRequestDto::singleLineWithPrice('my-order-001', $first->code, 1, $price),
 );
 
 foreach ($order->vouchers as $voucher) {
@@ -86,7 +93,8 @@ valid absolute URL, or (for the contract id) not a UUID.
 | `username` / `password` | resource-owner credentials |
 | `clientId` / `clientSecret` | OAuth client |
 | `authDomain` | SSO host, normalised to one trailing `/` |
-| `webDomain` | Web API base (keep the `/v1/` segment), normalised to one trailing `/` |
+| `webDomain` | V1 Web API base (keep the `/v1/` segment), normalised to one trailing `/` — still required, kept for rollback |
+| `webDomainV2` | V2 Web API base (keep the `/v2/` segment), normalised to one trailing `/` — what the client actually talks to |
 | `contractId` | contract UUID, lower-cased |
 | `environment` | `Environment::STAGING` or `Environment::PRODUCTION` — labels the client; `$client->isProduction()` gates money-moving calls |
 
@@ -105,6 +113,7 @@ AMILON_CLIENT_ID=...
 AMILON_CLIENT_SECRET=...
 AMILON_AUTH_DOMAIN=https://b2bstg-sso.amilon.eu/
 AMILON_WEB_DOMAIN=https://b2bstg-webapi.amilon.eu/b2bwebapi/v1/
+AMILON_WEB_DOMAIN_V2=https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/
 AMILON_CONTRACT_ID=00000000-0000-0000-0000-000000000000
 ```
 
@@ -115,13 +124,15 @@ that set on its own; to build a client, map it into a `CredentialDto` as above.
 ## Operations
 
 Every method is version-less: it returns a DTO from `Amilon\Dto\Response\` that is
-the same regardless of which API revision answered.
+the same regardless of which API revision answered. The client currently speaks
+**v2** (`ApiVersion::latest()`).
 
 | `AmilonClient` method | HTTP | Returns |
 | --- | --- | --- |
 | `getToken()` | `POST {authDomain}connect/token` | `AccessTokenDto` |
-| `getProducts(CountryEnum)` | `GET contracts/{id}/{country}/products` | `ProductCollectionDto` |
-| `getRetailers(CountryEnum)` | `GET contracts/{id}/{country}/retailers` | `RetailerCollectionDto` |
+| `getDenominations(CountryEnum)` | `GET contracts/{id}/{culture}/denominations` | `MerchantDenominationCollectionDto` |
+| `getDenominationsComplete(CountryEnum)` | `GET contracts/{id}/{culture}/denominations/complete` | `MerchantDenominationCollectionDto` |
+| `getRetailers(CountryEnum)` | `GET contracts/{id}/{culture}/retailers` | `RetailerCollectionDto` |
 | `makeOrder(CreateOrderRequestDto)` | `POST orders/create/{id}` | `OrderDto` |
 | `getOrderInfo(string $externalOrderId)` | `GET orders/{externalOrderId}/complete` | `OrderDto` |
 | `getContractInfo()` | `GET contracts/{id}` | `ContractInfoDto` |
@@ -131,19 +142,28 @@ the same regardless of which API revision answered.
   you need the raw token. `AccessTokenDto` carries `accessToken`, `tokenType`,
   `expiresAt` and an optional `refreshToken`, plus `isExpired()` and
   `authorizationHeader()`.
-- **`getProducts()` / `getRetailers()`** — take a `CountryEnum` (`IT`, `ES`). The
-  collections are iterable and countable and expose `all()`, `count()`,
-  `isEmpty()`. A `ProductDto` has `productCode`, `merchantCode`, `name`, `price`,
-  `imageUrl`, `active`, `visible`; a `RetailerDto` has `retailerId`, `name`,
+- **`getDenominations()` / `getDenominationsComplete()`** — take a `CountryEnum`
+  (`IT`, `ES`). The collection is iterable/countable (`all()`, `count()`,
+  `isEmpty()`) of `MerchantDenominationsDto`: one merchant (`code`, `name`,
+  `currency`, `vatValue`, …) with a `denominations` list of `DenominationDto`.
+  A `DenominationDto` carries `code`, `activationDate`, `imageUrl`, the nullable
+  `rangeMin` / `rangeMax` / `step` / `discountValue`, and a `prices` list of
+  `DenominationPriceDto` (`price`, `netPrice`); its shape is read with
+  `isFixed()`, `isVariable()`, `hasContractPriceOverride()`.
+  `getDenominationsComplete()` also fills `->extendedContent` with a
+  `MerchantContentDto` (long copy, extra logo sizes, category ids).
+- **`getRetailers()`** — a `RetailerDto` has `retailerId`, `name`,
   `shortDescription`, `imageUrl`, `codeValidityMonths`, `countryIsoAlpha3`.
 - **`makeOrder()`** — takes a self-contained `CreateOrderRequestDto`: your own
-  `externalOrderId` plus one `OrderLineDto` (`productCode`, `quantity`) per
-  product. Build it with `CreateOrderRequestDto::singleLine($id, $code, $qty)` or
-  `::fromLines($id, [OrderLineDto::of(...), ...])`. Returns an `OrderDto`:
-  `externalOrderId`, `orderStatus`, `orderDate`, `grossAmount`, `netAmount`, and
-  `vouchers` (a list of `VoucherDto` — `voucherLink`, validity window, product and
-  retailer ids). `vouchers` may be empty right after the call while the order is
-  processing.
+  `externalOrderId` plus one `OrderLineDto` (`retailerId`, `quantity`, `price`)
+  per merchant. Build it with
+  `CreateOrderRequestDto::singleLineWithPrice($id, $retailerId, $qty, $price)` or
+  `::fromLines($id, [OrderLineDto::withPrice(...), ...])` — v2 identifies the item
+  by retailer id **and** face value, so a line with no price is rejected before
+  any HTTP call. Returns an `OrderDto`: `externalOrderId`, `orderStatus`,
+  `orderDate`, `grossAmount`, `netAmount`, and `vouchers` (a list of `VoucherDto`
+  — `voucherLink`, validity window, product and retailer ids). `vouchers` may be
+  empty right after the call while the order is processing.
 - **`getOrderInfo()`** — the current state of an order you placed, keyed by the
   `externalOrderId` you chose. Same `OrderDto` shape as `makeOrder()`.
 - **`getContractInfo()`** — `ContractInfoDto` with `contractId`, `currentAmount`
@@ -223,6 +243,8 @@ final class AmilonClientFactory
         private readonly string $authDomain,
         #[Autowire('%env(AMILON_WEB_DOMAIN)%')]
         private readonly string $webDomain,
+        #[Autowire('%env(AMILON_WEB_DOMAIN_V2)%')]
+        private readonly string $webDomainV2,
         #[Autowire('%env(AMILON_CONTRACT_ID)%')]
         private readonly string $contractId,
         #[Autowire('%env(AMILON_ENVIRONMENT)%')] // "staging" or "production"
@@ -239,6 +261,7 @@ final class AmilonClientFactory
             clientSecret: $this->clientSecret,
             authDomain: $this->authDomain,
             webDomain: $this->webDomain,
+            webDomainV2: $this->webDomainV2,
             contractId: $this->contractId,
             environment: Environment::from($this->environment),
         ));
@@ -281,13 +304,14 @@ final class GiftCardOrderController
     #[Route('/gift-cards/orders', name: 'gift_card_order_create', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {
-        $productCode = (string) $request->request->get('productCode');
+        $retailerId = (string) $request->request->get('retailerId');
         $quantity = (int) $request->request->get('quantity', 1);
+        $price = (float) $request->request->get('price');
         $externalOrderId = 'order-' . bin2hex(random_bytes(8));
 
         try {
             $order = $this->amilonClient->makeOrder(
-                CreateOrderRequestDto::singleLine($externalOrderId, $productCode, $quantity),
+                CreateOrderRequestDto::singleLineWithPrice($externalOrderId, $retailerId, $quantity, $price),
             );
         } catch (AmilonExceptionInterface $amilonExceptionInterface) {
             // InvalidOrderRequestException -> bad input (400);

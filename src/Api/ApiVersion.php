@@ -31,22 +31,24 @@ namespace Amilon\Api;
  * reads it to decide which `Amilon\Api\V*` implementation of
  * {@see AmilonApiInterface} to wire up. Promoting a new revision means adding a
  * case here, pointing {@see self::latest()} at it, and providing the matching
- * implementation; the public surface and the response DTOs do not change.
+ * implementation; the public surface and the response DTOs stay as stable as the
+ * revision-to-revision differences allow.
  *
  * The backing value is the path segment Amilon uses for that revision
- * (`.../b2bwebapi/v1/`).
+ * (`.../b2bwebapi/v2/`), and the base URL for it is configured per revision
+ * ({@see \Amilon\Configuration\Configuration::$webDomainV2}), never hard-coded.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
 enum ApiVersion: string
 {
-    case V1 = 'v1';
+    case V2 = 'v2';
 
     /**
      * The revision new clients are built against.
      */
     public static function latest(): self
     {
-        return self::V1;
+        return self::V2;
     }
 }

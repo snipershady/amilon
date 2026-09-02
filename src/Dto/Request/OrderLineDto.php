@@ -25,43 +25,86 @@ namespace Amilon\Dto\Request;
 use Amilon\Exception\InvalidOrderRequestException;
 
 /**
- * One line of a {@see CreateOrderRequestDto}: how many of a given product to
- * order. The product is identified by the `productCode` from a
- * {@see \Amilon\Dto\Response\ProductDto} — the library never needs the product
- * object itself.
+ * One line of a {@see CreateOrderRequestDto}: how many of a given merchant's
+ * gift card to order, and — for the V2 API — at which face value.
  *
- * Build it through {@see self::of()} so a blank code or a non-positive quantity
- * is rejected up front.
+ * V2 identifies what to buy by `retailerId` (the `code` of a
+ * {@see \Amilon\Dto\Response\MerchantDenominationsDto}) plus `price`, not by a
+ * per-value product id. Build the line with {@see self::withPrice()} for the V2
+ * flow; {@see self::of()} leaves `price` `null` and is only usable against a wire
+ * mapper that does not need it.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
 final readonly class OrderLineDto
 {
     /**
-     * @param non-empty-string $productCode
+     * @param non-empty-string $retailerId
      * @param positive-int     $quantity
+     * @param float|null       $price      chosen face value; required by the V2 order body
      */
     private function __construct(
-        public string $productCode,
+        public string $retailerId,
         public int $quantity,
+        public ?float $price,
     ) {
     }
 
     /**
-     * @throws InvalidOrderRequestException when the code is blank or the quantity is below 1
+     * A line without a price. Valid to build, but the V2 order mapper rejects it
+     * with {@see InvalidOrderRequestException::missingPrice()} — prefer
+     * {@see self::withPrice()}.
+     *
+     * @throws InvalidOrderRequestException when the id is blank or the quantity is below 1
      */
-    public static function of(string $productCode, int $quantity): self
+    public static function of(string $retailerId, int $quantity): self
     {
-        $trimmedProductCode = trim($productCode);
+        return new self(self::assertRetailerId($retailerId), self::assertQuantity($retailerId, $quantity), price: null);
+    }
 
-        if ('' === $trimmedProductCode) {
-            throw InvalidOrderRequestException::blankProductCode();
+    /**
+     * The V2 line: a merchant plus the face value to order it at.
+     *
+     * @throws InvalidOrderRequestException when the id is blank, the quantity is below 1, or the price is not greater than 0
+     */
+    public static function withPrice(string $retailerId, int $quantity, float $price): self
+    {
+        $trimmedRetailerId = self::assertRetailerId($retailerId);
+
+        if ($price <= 0.0) {
+            throw InvalidOrderRequestException::nonPositivePrice($trimmedRetailerId, $price);
         }
 
+        return new self($trimmedRetailerId, self::assertQuantity($trimmedRetailerId, $quantity), $price);
+    }
+
+    /**
+     * @return non-empty-string
+     *
+     * @throws InvalidOrderRequestException
+     */
+    private static function assertRetailerId(string $retailerId): string
+    {
+        $trimmed = trim($retailerId);
+
+        if ('' === $trimmed) {
+            throw InvalidOrderRequestException::blankRetailerId();
+        }
+
+        return $trimmed;
+    }
+
+    /**
+     * @return positive-int
+     *
+     * @throws InvalidOrderRequestException
+     */
+    private static function assertQuantity(string $retailerId, int $quantity): int
+    {
         if ($quantity < 1) {
-            throw InvalidOrderRequestException::nonPositiveQuantity($trimmedProductCode, $quantity);
+            throw InvalidOrderRequestException::nonPositiveQuantity(trim($retailerId), $quantity);
         }
 
-        return new self($trimmedProductCode, $quantity);
+        return $quantity;
     }
 }

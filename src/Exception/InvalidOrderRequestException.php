@@ -25,11 +25,13 @@ namespace Amilon\Exception;
 /**
  * Thrown when the caller hands {@see \Amilon\Dto\Request\CreateOrderRequestDto}
  * data that cannot describe a valid order — a blank external id, no order lines,
- * a blank product code or a quantity below one.
+ * a blank retailer id, a quantity below one, a non-positive price, or (for the
+ * V2 wire shape) a line with no price at all.
  *
- * Like {@see InvalidConfigurationException} this is a caller mistake caught at
- * construction time, before any HTTP call, so a malformed order can never reach
- * the API.
+ * Like {@see InvalidConfigurationException} this is a caller mistake caught
+ * before any HTTP call — at DTO construction, or in
+ * {@see \Amilon\Api\V2\Order\OrderRequestMapper} for the price the V2 body
+ * requires — so a malformed order can never reach the API.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
@@ -45,17 +47,34 @@ final class InvalidOrderRequestException extends \InvalidArgumentException imple
         return new self('The order request needs at least one order line.');
     }
 
-    public static function blankProductCode(): self
+    public static function blankRetailerId(): self
     {
-        return new self('An order line needs a non-blank product code.');
+        return new self('An order line needs a non-blank retailer id.');
     }
 
-    public static function nonPositiveQuantity(string $productCode, int $quantity): self
+    public static function nonPositiveQuantity(string $retailerId, int $quantity): self
     {
         return new self(sprintf(
-            'The order line for product "%s" needs a quantity of at least 1, got %d.',
-            $productCode,
+            'The order line for retailer "%s" needs a quantity of at least 1, got %d.',
+            $retailerId,
             $quantity,
+        ));
+    }
+
+    public static function nonPositivePrice(string $retailerId, float $price): self
+    {
+        return new self(sprintf(
+            'The order line for retailer "%s" needs a price greater than 0, got %s.',
+            $retailerId,
+            $price,
+        ));
+    }
+
+    public static function missingPrice(string $retailerId): self
+    {
+        return new self(sprintf(
+            'The order line for retailer "%s" needs a price: the V2 order API identifies a denomination by retailer id and price.',
+            $retailerId,
         ));
     }
 }

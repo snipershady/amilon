@@ -82,6 +82,7 @@ abstract class AbstractIntegrationTestCase extends AbstractTestCase
             clientSecret: $this->liveValue('AMILON_CLIENT_SECRET', 'clientSecret'),
             authDomain: $this->liveValue('AMILON_AUTH_DOMAIN', 'authDomain'),
             webDomain: $this->liveValue('AMILON_WEB_DOMAIN', 'webDomain'),
+            webDomainV2: $this->liveValue('AMILON_WEB_DOMAIN_V2', 'webDomainV2'),
             contractId: $this->liveValue('AMILON_CONTRACT_ID', 'contractId'),
             environment: Environment::STAGING,
         );

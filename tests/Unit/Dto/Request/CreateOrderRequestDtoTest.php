@@ -35,13 +35,13 @@ final class CreateOrderRequestDtoTest extends AbstractTestCase
     public function testFromLinesTrimsTheIdAndKeepsEveryLine(): void
     {
         $request = CreateOrderRequestDto::fromLines('  ext-9  ', [
-            OrderLineDto::of('A', 1),
-            OrderLineDto::of('B', 5),
+            OrderLineDto::withPrice('A', 1, 10.0),
+            OrderLineDto::withPrice('B', 5, 25.0),
         ]);
 
         $this->assertSame('ext-9', $request->externalOrderId);
         $this->assertSame(['A', 'B'], array_map(
-            static fn (OrderLineDto $orderLineDto): string => $orderLineDto->productCode,
+            static fn (OrderLineDto $orderLineDto): string => $orderLineDto->retailerId,
             $request->lines,
         ));
         $this->assertSame([1, 5], array_map(
@@ -55,7 +55,7 @@ final class CreateOrderRequestDtoTest extends AbstractTestCase
         $this->expectException(InvalidOrderRequestException::class);
         $this->expectExceptionMessage('external order id');
 
-        CreateOrderRequestDto::fromLines('   ', [OrderLineDto::of('A', 1)]);
+        CreateOrderRequestDto::fromLines('   ', [OrderLineDto::withPrice('A', 1, 10.0)]);
     }
 
     public function testFromLinesRejectsAnEmptyLineSet(): void
@@ -66,14 +66,16 @@ final class CreateOrderRequestDtoTest extends AbstractTestCase
         CreateOrderRequestDto::fromLines('ext-1', []);
     }
 
-    public function testSingleLineIsAShortcutForOneProduct(): void
+    public function testSingleLineWithPriceIsAShortcutForOneMerchant(): void
     {
-        $request = CreateOrderRequestDto::singleLine('ext-1', '  PC-1  ', 2);
+        $request = CreateOrderRequestDto::singleLineWithPrice('ext-1', '  R-1  ', 2, 50.0);
 
         $this->assertSame('ext-1', $request->externalOrderId);
         $this->assertCount(1, $request->lines);
-        $this->assertSame('PC-1', $request->lines[0]->productCode);
+        $this->assertSame('R-1', $request->lines[0]->retailerId);
         $this->assertSame(2, $request->lines[0]->quantity);
+        $this->assertNotNull($request->lines[0]->price);
+        $this->assertEqualsWithDelta(50.0, $request->lines[0]->price, PHP_FLOAT_EPSILON);
     }
 
     public function testSingleLinePropagatesLineValidation(): void

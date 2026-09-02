@@ -20,23 +20,25 @@ declare(strict_types=1);
  * Boston, MA 02110-1301 USA.
  */
 
-namespace Amilon\Tests\Unit\Api;
-
-use Amilon\Api\ApiVersion;
-use Amilon\Tests\AbstractTestCase;
+namespace Amilon\Dto\Response;
 
 /**
+ * One concrete price point inside a {@see DenominationDto}: the face value the
+ * buyer pays (`price`) and what it costs the contract after its rebate
+ * (`netPrice`).
+ *
+ * A flat, version-shared projection of an entry in a denomination's `Prices`
+ * array. Behaviour-free and unvalidated;
+ * {@see \Amilon\Api\V2\Catalog\DenominationMapper} produces it from the raw API
+ * row.
+ *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
-final class ApiVersionTest extends AbstractTestCase
+final readonly class DenominationPriceDto
 {
-    public function testLatestPointsAtAKnownCase(): void
-    {
-        $this->assertContains(ApiVersion::latest(), ApiVersion::cases());
-    }
-
-    public function testTheBackingValueIsThePathSegment(): void
-    {
-        $this->assertSame('v2', ApiVersion::V2->value);
+    public function __construct(
+        public float $price,
+        public float $netPrice,
+    ) {
     }
 }

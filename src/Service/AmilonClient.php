@@ -27,8 +27,8 @@ use Amilon\Configuration\Configuration;
 use Amilon\Dto\Request\CreateOrderRequestDto;
 use Amilon\Dto\Response\AccessTokenDto;
 use Amilon\Dto\Response\ContractInfoDto;
+use Amilon\Dto\Response\MerchantDenominationCollectionDto;
 use Amilon\Dto\Response\OrderDto;
-use Amilon\Dto\Response\ProductCollectionDto;
 use Amilon\Dto\Response\RetailerCollectionDto;
 use Amilon\Enum\CountryEnum;
 use Amilon\Enum\Environment;
@@ -85,14 +85,30 @@ final readonly class AmilonClient
     }
 
     /**
-     * The gift-card products the contract can sell in $country.
+     * The merchants and their gift-card denominations the contract can sell in
+     * $country. Each {@see \Amilon\Dto\Response\MerchantDenominationsDto} groups a
+     * whole span of face values under one merchant `code` — pass that `code` plus
+     * a chosen price to {@see self::makeOrder()}.
      *
      * @throws AuthenticationException when the bearer token cannot be obtained
      * @throws ApiRequestException     when the catalogue call itself fails
      */
-    public function getProducts(CountryEnum $countryEnum): ProductCollectionDto
+    public function getDenominations(CountryEnum $countryEnum): MerchantDenominationCollectionDto
     {
-        return $this->api->getProducts($countryEnum);
+        return $this->api->getDenominations($countryEnum);
+    }
+
+    /**
+     * As {@see self::getDenominations()} but each merchant also carries its
+     * extended content block ({@see \Amilon\Dto\Response\MerchantContentDto}):
+     * long description, extra logo sizes, category ids.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the catalogue call itself fails
+     */
+    public function getDenominationsComplete(CountryEnum $countryEnum): MerchantDenominationCollectionDto
+    {
+        return $this->api->getDenominationsComplete($countryEnum);
     }
 
     /**

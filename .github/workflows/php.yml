@@ -90,14 +90,17 @@ jobs:
 
       # The integration suite talks to the real Amilon sandbox. It only runs
       # when the credentials are configured as repository secrets; otherwise the
-      # tests skip themselves and this step is a no-op.
+      # tests skip themselves and this step is a no-op. The "opt-in" group —
+      # tests that place real sandbox orders or need an extra fixture such as a
+      # known order id — is excluded here; run those deliberately with the
+      # matching env var and --group opt-in.
       - name: Run the integration suite against the Amilon sandbox
         if: ${{ env.AMILON_CLIENT_ID != '' }}
         env:
           AMILON_BASE_URI: ${{ secrets.AMILON_BASE_URI }}
           AMILON_CLIENT_ID: ${{ secrets.AMILON_CLIENT_ID }}
           AMILON_CLIENT_SECRET: ${{ secrets.AMILON_CLIENT_SECRET }}
-        run: vendor/bin/phpunit --testsuite integration --fail-on-skipped
+        run: vendor/bin/phpunit --testsuite integration --fail-on-skipped --exclude-group opt-in
 
       - name: Coverage report
         run: vendor/bin/phpunit --testsuite unit --coverage-text

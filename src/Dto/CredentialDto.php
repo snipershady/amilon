@@ -46,6 +46,7 @@ use Amilon\Enum\Environment;
  *         clientSecret: $secrets->get('amilon_client_secret'),
  *         authDomain:   'https://b2bstg-sso.amilon.eu/',
  *         webDomain:    'https://b2bstg-webapi.amilon.eu/b2bwebapi/v1/',
+ *         webDomainV2:  'https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/',
  *         contractId:   '1ab2c3d4-567e-4b0c-b8da-a3ed94ae6392',
  *         environment:  Environment::STAGING,
  *     );
@@ -61,6 +62,7 @@ final readonly class CredentialDto
         public string $clientSecret,
         public string $authDomain,
         public string $webDomain,
+        public string $webDomainV2,
         public string $contractId,
         public Environment $environment,
     ) {
@@ -77,6 +79,7 @@ final readonly class CredentialDto
      *     clientSecret: string,
      *     authDomain: string,
      *     webDomain: string,
+     *     webDomainV2: string,
      *     contractId: string
      * }
      */
@@ -89,6 +92,7 @@ final readonly class CredentialDto
             'clientSecret' => $this->clientSecret,
             'authDomain' => $this->authDomain,
             'webDomain' => $this->webDomain,
+            'webDomainV2' => $this->webDomainV2,
             'contractId' => $this->contractId,
         ];
     }

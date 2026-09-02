@@ -25,8 +25,8 @@ namespace Amilon\Api;
 use Amilon\Dto\Request\CreateOrderRequestDto;
 use Amilon\Dto\Response\AccessTokenDto;
 use Amilon\Dto\Response\ContractInfoDto;
+use Amilon\Dto\Response\MerchantDenominationCollectionDto;
 use Amilon\Dto\Response\OrderDto;
-use Amilon\Dto\Response\ProductCollectionDto;
 use Amilon\Dto\Response\RetailerCollectionDto;
 use Amilon\Enum\CountryEnum;
 use Amilon\Exception\ApiRequestException;
@@ -56,12 +56,22 @@ interface AmilonApiInterface
     public function getToken(): AccessTokenDto;
 
     /**
-     * The gift-card products the contract can sell in $country.
+     * The merchants and their gift-card denominations the contract can sell in
+     * $country (V2 `denominations`).
      *
      * @throws AuthenticationException when the bearer token cannot be obtained
      * @throws ApiRequestException     when the catalogue call itself fails
      */
-    public function getProducts(CountryEnum $countryEnum): ProductCollectionDto;
+    public function getDenominations(CountryEnum $countryEnum): MerchantDenominationCollectionDto;
+
+    /**
+     * As {@see self::getDenominations()} but via V2 `denominations/complete`, so
+     * each merchant also carries a {@see \Amilon\Dto\Response\MerchantContentDto}.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the catalogue call itself fails
+     */
+    public function getDenominationsComplete(CountryEnum $countryEnum): MerchantDenominationCollectionDto;
 
     /**
      * The retailers (brands) available to the contract in $country.

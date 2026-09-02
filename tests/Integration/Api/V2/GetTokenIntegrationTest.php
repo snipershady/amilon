@@ -20,23 +20,32 @@ declare(strict_types=1);
  * Boston, MA 02110-1301 USA.
  */
 
-namespace Amilon\Tests\Unit\Api;
+namespace Amilon\Tests\Integration\Api\V2;
 
-use Amilon\Api\ApiVersion;
-use Amilon\Tests\AbstractTestCase;
+use Amilon\Tests\Integration\AbstractIntegrationTestCase;
 
 /**
+ * Exercises {@see \Amilon\Service\AmilonClient::getToken()} against the real
+ * Amilon STAGING SSO endpoint.
+ *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
-final class ApiVersionTest extends AbstractTestCase
+final class GetTokenIntegrationTest extends AbstractIntegrationTestCase
 {
-    public function testLatestPointsAtAKnownCase(): void
+    public function testItObtainsAUsableAccessTokenFromTheSandbox(): void
     {
-        $this->assertContains(ApiVersion::latest(), ApiVersion::cases());
+        $token = $this->liveStagingClient()->getToken();
+
+        $this->assertNotSame('', $token->accessToken);
+        $this->assertFalse($token->isExpired());
+        $this->assertGreaterThan(time(), $token->expiresAt->getTimestamp());
+        $this->assertStringEndsWith(' ' . $token->accessToken, $token->authorizationHeader());
     }
 
-    public function testTheBackingValueIsThePathSegment(): void
+    public function testASecondCallReusesTheCachedToken(): void
     {
-        $this->assertSame('v2', ApiVersion::V2->value);
+        $client = $this->liveStagingClient();
+
+        $this->assertSame($client->getToken()->accessToken, $client->getToken()->accessToken);
     }
 }

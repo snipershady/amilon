@@ -32,18 +32,29 @@ use Amilon\Tests\AbstractTestCase;
  */
 final class OrderLineDtoTest extends AbstractTestCase
 {
-    public function testItBuildsATrimmedLine(): void
+    public function testOfBuildsATrimmedPricelessLine(): void
     {
-        $line = OrderLineDto::of('  PC-1  ', 3);
+        $line = OrderLineDto::of('  R-1  ', 3);
 
-        $this->assertSame('PC-1', $line->productCode);
+        $this->assertSame('R-1', $line->retailerId);
         $this->assertSame(3, $line->quantity);
+        $this->assertNull($line->price);
     }
 
-    public function testItRejectsABlankProductCode(): void
+    public function testWithPriceCarriesTheFaceValue(): void
+    {
+        $line = OrderLineDto::withPrice('  R-1  ', 2, 50.0);
+
+        $this->assertSame('R-1', $line->retailerId);
+        $this->assertSame(2, $line->quantity);
+        $this->assertNotNull($line->price);
+        $this->assertEqualsWithDelta(50.0, $line->price, PHP_FLOAT_EPSILON);
+    }
+
+    public function testItRejectsABlankRetailerId(): void
     {
         $this->expectException(InvalidOrderRequestException::class);
-        $this->expectExceptionMessage('product code');
+        $this->expectExceptionMessage('retailer id');
 
         OrderLineDto::of('   ', 1);
     }
@@ -51,15 +62,23 @@ final class OrderLineDtoTest extends AbstractTestCase
     public function testItRejectsANonPositiveQuantity(): void
     {
         $this->expectException(InvalidOrderRequestException::class);
-        $this->expectExceptionMessage('PC-1');
+        $this->expectExceptionMessage('R-1');
 
-        OrderLineDto::of('PC-1', 0);
+        OrderLineDto::of('R-1', 0);
+    }
+
+    public function testWithPriceRejectsANonPositivePrice(): void
+    {
+        $this->expectException(InvalidOrderRequestException::class);
+        $this->expectExceptionMessage('price greater than 0');
+
+        OrderLineDto::withPrice('R-1', 1, 0.0);
     }
 
     public function testTheRejectionIsCatchableThroughTheLibraryMarker(): void
     {
         $this->expectException(AmilonExceptionInterface::class);
 
-        OrderLineDto::of('PC-1', -2);
+        OrderLineDto::of('R-1', -2);
     }
 }

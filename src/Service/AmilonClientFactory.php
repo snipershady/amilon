@@ -24,16 +24,16 @@ namespace Amilon\Service;
 
 use Amilon\Api\AmilonApiInterface;
 use Amilon\Api\ApiVersion;
-use Amilon\Api\V1\Catalog\ProductApi;
-use Amilon\Api\V1\Catalog\ProductMapper;
-use Amilon\Api\V1\Catalog\RetailerApi;
-use Amilon\Api\V1\Catalog\RetailerMapper;
-use Amilon\Api\V1\Contract\ContractApi;
-use Amilon\Api\V1\Contract\ContractMapper;
-use Amilon\Api\V1\Order\OrderApi;
-use Amilon\Api\V1\Order\OrderMapper;
-use Amilon\Api\V1\Order\OrderRequestMapper;
-use Amilon\Api\V1\V1Api;
+use Amilon\Api\V2\Catalog\DenominationApi;
+use Amilon\Api\V2\Catalog\DenominationMapper;
+use Amilon\Api\V2\Catalog\RetailerApi;
+use Amilon\Api\V2\Catalog\RetailerMapper;
+use Amilon\Api\V2\Contract\ContractApi;
+use Amilon\Api\V2\Contract\ContractMapper;
+use Amilon\Api\V2\Order\OrderApi;
+use Amilon\Api\V2\Order\OrderMapper;
+use Amilon\Api\V2\Order\OrderRequestMapper;
+use Amilon\Api\V2\V2Api;
 use Amilon\Auth\TokenProvider;
 use Amilon\Configuration\Configuration;
 use Amilon\Dto\CredentialDto;
@@ -101,16 +101,16 @@ final class AmilonClientFactory
         $responseParser = new AmilonResponseParser($types);
 
         return match ($apiVersion) {
-            ApiVersion::V1 => self::buildV1Api($configuration, $httpClient, $types, $responseParser),
+            ApiVersion::V2 => self::buildV2Api($configuration, $httpClient, $types, $responseParser),
         };
     }
 
-    private static function buildV1Api(
+    private static function buildV2Api(
         Configuration $configuration,
         HttpClientInterface $httpClient,
         EffectivePrimitiveTypeIdentifierService $effectivePrimitiveTypeIdentifierService,
         AmilonResponseParser $amilonResponseParser,
-    ): V1Api {
+    ): V2Api {
         $tokenProvider = new TokenProvider(
             self::scopedTo($httpClient, $configuration->authDomain),
             $configuration,
@@ -119,14 +119,14 @@ final class AmilonClientFactory
         );
 
         $executor = new AmilonHttpExecutor(
-            self::scopedTo($httpClient, $configuration->webDomain),
+            self::scopedTo($httpClient, $configuration->webDomainV2),
             $tokenProvider,
             $amilonResponseParser,
         );
 
-        return new V1Api(
+        return new V2Api(
             $tokenProvider,
-            new ProductApi($executor, $configuration, new ProductMapper($effectivePrimitiveTypeIdentifierService)),
+            new DenominationApi($executor, $configuration, new DenominationMapper($effectivePrimitiveTypeIdentifierService)),
             new RetailerApi($executor, $configuration, new RetailerMapper($effectivePrimitiveTypeIdentifierService)),
             new OrderApi(
                 $executor,

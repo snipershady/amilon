@@ -20,23 +20,23 @@ declare(strict_types=1);
  * Boston, MA 02110-1301 USA.
  */
 
-namespace Amilon\Tests\Unit\Api;
+namespace Amilon\Tests\Integration\Api\V2;
 
-use Amilon\Api\ApiVersion;
-use Amilon\Tests\AbstractTestCase;
+use Amilon\Tests\Integration\AbstractIntegrationTestCase;
 
 /**
+ * Exercises {@see \Amilon\Service\AmilonClient::getContractInfo()} against the
+ * real Amilon STAGING API.
+ *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
-final class ApiVersionTest extends AbstractTestCase
+final class GetContractInfoIntegrationTest extends AbstractIntegrationTestCase
 {
-    public function testLatestPointsAtAKnownCase(): void
+    public function testItReturnsTheContractBalance(): void
     {
-        $this->assertContains(ApiVersion::latest(), ApiVersion::cases());
-    }
+        $info = $this->liveStagingClient()->getContractInfo();
 
-    public function testTheBackingValueIsThePathSegment(): void
-    {
-        $this->assertSame('v2', ApiVersion::V2->value);
+        $this->assertGreaterThanOrEqual(0.0, $info->currentAmount);
+        $this->assertInstanceOf(\DateTimeImmutable::class, $info->lastUpdate, 'the sandbox contract is expected to carry a last-update timestamp');
     }
 }

@@ -20,23 +20,30 @@ declare(strict_types=1);
  * Boston, MA 02110-1301 USA.
  */
 
-namespace Amilon\Tests\Unit\Api;
+namespace Amilon\Tests\Integration\Api\V2;
 
-use Amilon\Api\ApiVersion;
-use Amilon\Tests\AbstractTestCase;
+use Amilon\Enum\CountryEnum;
+use Amilon\Tests\Integration\AbstractIntegrationTestCase;
 
 /**
+ * Exercises {@see \Amilon\Service\AmilonClient::getRetailers()} against the real
+ * Amilon STAGING catalogue.
+ *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
-final class ApiVersionTest extends AbstractTestCase
+final class GetRetailersIntegrationTest extends AbstractIntegrationTestCase
 {
-    public function testLatestPointsAtAKnownCase(): void
+    public function testItListsRetailersForItaly(): void
     {
-        $this->assertContains(ApiVersion::latest(), ApiVersion::cases());
-    }
+        $retailers = $this->liveStagingClient()->getRetailers(CountryEnum::IT);
 
-    public function testTheBackingValueIsThePathSegment(): void
-    {
-        $this->assertSame('v2', ApiVersion::V2->value);
+        $this->assertFalse($retailers->isEmpty(), 'the STAGING IT catalogue is expected to expose retailers');
+        $this->assertCount($retailers->count(), $retailers->all());
+
+        foreach ($retailers as $retailer) {
+            $this->assertNotSame('', $retailer->retailerId);
+            $this->assertNotSame('', $retailer->name);
+            $this->assertGreaterThanOrEqual(0, $retailer->codeValidityMonths);
+        }
     }
 }

@@ -26,15 +26,16 @@ use Amilon\Exception\InvalidOrderRequestException;
 
 /**
  * A complete order to place through {@see \Amilon\Service\AmilonClient::makeOrder()}:
- * the caller's own order id plus one {@see OrderLineDto} per product with its
- * quantity. It carries everything the order needs — there is no separate product
- * or order entity to pass alongside it.
+ * the caller's own order id plus one {@see OrderLineDto} per merchant with its
+ * quantity and chosen face value. It carries everything the order needs — there
+ * is no separate product or order entity to pass alongside it.
  *
  * `externalOrderId` is the caller's identifier for the order; Amilon echoes it
  * back on the confirmation and on {@see \Amilon\Service\AmilonClient::getOrderInfo()}.
  *
- * Build it through {@see self::fromLines()} or {@see self::singleLine()} so a
- * blank id or an empty line set is rejected before any HTTP call.
+ * Build it through {@see self::fromLines()}, {@see self::singleLine()} or
+ * {@see self::singleLineWithPrice()} so a blank id or an empty line set is
+ * rejected before any HTTP call.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
@@ -71,12 +72,22 @@ final readonly class CreateOrderRequestDto
     }
 
     /**
-     * The common single-product order.
+     * A single-merchant order with no explicit price — see {@see OrderLineDto::of()}.
      *
      * @throws InvalidOrderRequestException when any value is invalid
      */
-    public static function singleLine(string $externalOrderId, string $productCode, int $quantity): self
+    public static function singleLine(string $externalOrderId, string $retailerId, int $quantity): self
     {
-        return self::fromLines($externalOrderId, [OrderLineDto::of($productCode, $quantity)]);
+        return self::fromLines($externalOrderId, [OrderLineDto::of($retailerId, $quantity)]);
+    }
+
+    /**
+     * The common V2 single-merchant order: one retailer, one face value.
+     *
+     * @throws InvalidOrderRequestException when any value is invalid
+     */
+    public static function singleLineWithPrice(string $externalOrderId, string $retailerId, int $quantity, float $price): self
+    {
+        return self::fromLines($externalOrderId, [OrderLineDto::withPrice($retailerId, $quantity, $price)]);
     }
 }
