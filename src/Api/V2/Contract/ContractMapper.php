@@ -27,12 +27,12 @@ use Amilon\Support\DateParser;
 use TypeIdentifier\Service\EffectivePrimitiveTypeIdentifierServiceInterface;
 
 /**
- * Maps the V2 `contracts/{contractId}` response into a {@see ContractInfoDto} —
- * unchanged from V1.
+ * Maps the V2 `contracts/{contractId}` response into a {@see ContractInfoDto}.
  *
  * Scalars go through {@see EffectivePrimitiveTypeIdentifierServiceInterface}
- * (`CurrentAmount` may arrive as a string); `LastUpdate` goes through
- * {@see DateParser}.
+ * (`CurrentAmount` / `PreviousAmount` may arrive as strings); `StartDate` /
+ * `EndDate` / `LastUpdate` go through {@see DateParser} (absent or unparseable
+ * → `null`).
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
@@ -50,7 +50,16 @@ final readonly class ContractMapper
     {
         return new ContractInfoDto(
             contractId: $this->types->getStringValueFromArray('ContractId', $payload, trim: true),
+            contractName: $this->types->getStringValueFromArray('ContractName', $payload, trim: true),
+            currencyIsoCode: $this->types->getStringValueFromArray('CurrencyIsoCode', $payload, trim: true),
             currentAmount: $this->types->getFloatValueFromArray('CurrentAmount', $payload),
+            previousAmount: $this->types->getFloatValueFromArray('PreviousAmount', $payload),
+            startDate: DateParser::nullable(
+                $this->types->getStringValueFromArray('StartDate', $payload, trim: true),
+            ),
+            endDate: DateParser::nullable(
+                $this->types->getStringValueFromArray('EndDate', $payload, trim: true),
+            ),
             lastUpdate: DateParser::nullable(
                 $this->types->getStringValueFromArray('LastUpdate', $payload, trim: true),
             ),

@@ -40,8 +40,9 @@ use TypeIdentifier\Service\EffectivePrimitiveTypeIdentifierServiceInterface;
  * `RangeMin`/`RangeMax`/`Step`/`DiscountValue` are read as **nullable** floats so
  * the three denomination shapes of the migration guide survive the mapping
  * (see {@see DenominationDto}); `ActivationDate` goes through {@see DateParser}
- * (absent or unparseable → `null`). Rows that are not objects are skipped rather
- * than faked.
+ * (absent or unparseable → `null`). The per-denomination `Image*` sizes only the
+ * `complete` response carries are read too — an empty string for the plain
+ * listing. Rows that are not objects are skipped rather than faked.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
@@ -129,6 +130,11 @@ final readonly class DenominationMapper
             step: $this->nullableFloat($row, 'Step'),
             discountValue: $this->nullableFloat($row, 'DiscountValue'),
             prices: $this->mapPrices($row['Prices'] ?? null),
+            image136x86: $this->types->getStringValueFromArray('Image136x86', $row, trim: true),
+            image461x292: $this->types->getStringValueFromArray('Image461x292', $row, trim: true),
+            image200x200: $this->types->getStringValueFromArray('Image200x200', $row, trim: true),
+            image300x190: $this->types->getStringValueFromArray('Image300x190', $row, trim: true),
+            image560x292: $this->types->getStringValueFromArray('Image560x292', $row, trim: true),
         );
     }
 

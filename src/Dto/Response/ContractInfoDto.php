@@ -23,11 +23,17 @@ declare(strict_types=1);
 namespace Amilon\Dto\Response;
 
 /**
- * The result of {@see \Amilon\Service\AmilonClient::getContractInfo()}: the
- * contract's spendable balance and when Amilon last recomputed it.
+ * The result of {@see \Amilon\Service\AmilonClient::getContractInfo()}: the full
+ * documented `contracts/{contractId}` shape — the contract's identity, validity
+ * window, currency and balances.
  *
- * `currentAmount` is the balance orders draw down; `lastUpdate` is `null` when
- * Amilon omits or sends an unparseable timestamp.
+ * `currentAmount` is the balance orders draw down and `previousAmount` is what it
+ * was before the last operation; `currencyIsoCode` is the ISO-4217 code every
+ * denomination in an order must match. `startDate` / `endDate` / `lastUpdate` are
+ * `null` when Amilon omits or sends an unparseable timestamp.
+ *
+ * A flat, version-shared projection built by
+ * {@see \Amilon\Api\V2\Contract\ContractMapper}; it does not validate.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
@@ -35,7 +41,12 @@ final readonly class ContractInfoDto
 {
     public function __construct(
         public string $contractId,
+        public string $contractName,
+        public string $currencyIsoCode,
         public float $currentAmount,
+        public float $previousAmount,
+        public ?\DateTimeImmutable $startDate,
+        public ?\DateTimeImmutable $endDate,
         public ?\DateTimeImmutable $lastUpdate,
     ) {
     }

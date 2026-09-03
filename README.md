@@ -246,6 +246,8 @@ Amilon\Dto\Response\MerchantDenominationCollectionDto {
               +netPrice: 19.8
             }
           ]
+          +image136x86: ""   +image461x292: ""   +image200x200: ""   +image300x190: ""   +image560x292: ""
+          // the image* sizes are "" here — only getDenominationsComplete() fills them
           // isFixed() => true   isVariable() => false   hasContractPriceOverride() => false
         }
         // 6 more fixed denominations: 100.0, 10.0, 25.0, 50.0, 5.0, 150.0
@@ -290,7 +292,8 @@ Amilon\Dto\Response\DenominationDto {
 
 Identical to `getDenominations()`, but every `MerchantDenominationsDto` also
 carries its editorial `->extendedContent` block (long copy, extra logo sizes,
-category ids).
+category ids) and every `DenominationDto` fills in its five `image*` artwork
+sizes.
 
 ```php
 use Amilon\Enum\CountryEnum;
@@ -307,7 +310,17 @@ echo $content->termsAndConditions, PHP_EOL;
     0 => Amilon\Dto\Response\MerchantDenominationsDto {
       +code: "875196f7-5e79-4e6d-8f8f-5e27f8fa2146"
       +name: "IdeaShopping"
-      // ... same fields as getDenominations() ...
+      // ... same merchant fields as getDenominations() ...
+      +denominations: array:1 [
+        0 => Amilon\Dto\Response\DenominationDto {
+          // ... same denomination fields as getDenominations(), plus:
+          +image136x86:  "https://b2bstg-web.amilon.eu/B2BFiles/products/.../136x86.png"
+          +image461x292: "https://b2bstg-web.amilon.eu/B2BFiles/products/.../461x292.png"
+          +image200x200: "https://b2bstg-web.amilon.eu/B2BFiles/products/.../200x200.png"
+          +image300x190: "https://b2bstg-web.amilon.eu/B2BFiles/products/.../300x190.png"
+          +image560x292: "https://b2bstg-web.amilon.eu/B2BFiles/products/.../560x292.png"
+        }
+      ]
       +extendedContent: Amilon\Dto\Response\MerchantContentDto {
         +extraShortDescription: "Idea Shopping è la prima Gift Card digitale..."
         +termsAndConditions: "INFORMAZIONI SULLA GIFT CARD IDEASHOPPING\r\n..."
@@ -397,12 +410,32 @@ Amilon\Dto\Response\RetailerCollectionDto {
   // iterable + countable: ->all() ->count() ->isEmpty()
   -retailers: array:120 [
     0 => Amilon\Dto\Response\RetailerDto {
-      +retailerId: "42"
+      +retailerId: "f72c8dc7-8feb-4dad-bf66-39c8ed238a2b"
       +name: "Amazon"
-      +shortDescription: "e-commerce"
-      +imageUrl: "https://eurob2b.amilon.eu/b2bfiles/retailers/.../amazon.png"
-      +codeValidityMonths: 24
+      +country: "Italy"
       +countryIsoAlpha3: "ITA"
+      +region: "Lombardia"
+      +county: "MI"
+      +city: "Milano"
+      +address: "Via Example 1"
+      +zipCode: "20100"
+      +phone: "+39 02 0000000"
+      +email: "info@example.test"
+      +shortDescription: "e-commerce"
+      +longDescription: "<p>The everything store.</p>"
+      +termsAndConditions: "See amazon.it for full terms."
+      +codeValidityMonths: 24
+      +imageUrl: "https://eurob2b.amilon.eu/b2bfiles/retailers/.../amazon.png"
+      +slug: "amazon-ita"
+      +retailerShopShowDetails: true
+      +retailerShopDetailsText: "Spendable online at amazon.it"
+      +isCombinable: true               // multiple codes can be combined in one purchase
+      +isFractionable: false            // a code must be spent in a single transaction
+      +validitySaleDays: 365
+      +saleViewTimeUnitId: 2            // Amilon-internal enum id
+      +retailerSaleType: "Promotional"
+      +vatValue: 22                     // VAT rate as an integer percentage
+      +vatValueName: "IVA 22%"
     }
     // 119 more retailers
   ]
@@ -626,7 +659,7 @@ Amilon\Dto\Response\OrderDto {
 
 ### `getContractInfo()`
 
-The configured contract's spendable balance and when Amilon last recomputed it.
+The configured contract's identity, validity window, currency and balances.
 
 ```php
 $info = $client->getContractInfo();
@@ -634,6 +667,9 @@ $info = $client->getContractInfo();
 if ($info->currentAmount < 100.0) {
     // top up before ordering
 }
+
+// every denomination in an order must be priced in this currency
+$currency = $info->currencyIsoCode;   // e.g. "EUR"
 ```
 
 **Response — `ContractInfoDto`**
@@ -641,10 +677,18 @@ if ($info->currentAmount < 100.0) {
 ```
 Amilon\Dto\Response\ContractInfoDto {
   +contractId: "1ab2c3d4-567e-4b0c-b8da-a3ed94ae6392"
-  +currentAmount: 1234.56              // the balance orders draw down
+  +contractName: "ACME Welfare 2026"
+  +currencyIsoCode: "EUR"             // orders may only buy denominations in this currency
+  +currentAmount: 1234.56             // the balance orders draw down (after the last operation)
+  +previousAmount: 2000.0             // the balance before the last operation
+  +startDate: DateTimeImmutable @1767225600 { 2026-01-01 00:00:00.0 UTC (+00:00) }
+  +endDate: DateTimeImmutable @1798761599 { 2026-12-31 23:59:59.0 UTC (+00:00) }
   +lastUpdate: DateTimeImmutable @1773570600 { 2026-03-15 10:30:00.0 UTC (+00:00) }
 }
 ```
+
+`startDate` / `endDate` / `lastUpdate` are `null` when Amilon omits or sends an
+unparseable timestamp.
 
 ## Errors
 

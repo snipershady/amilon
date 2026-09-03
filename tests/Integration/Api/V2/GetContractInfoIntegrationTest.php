@@ -38,5 +38,8 @@ final class GetContractInfoIntegrationTest extends AbstractIntegrationTestCase
 
         $this->assertGreaterThanOrEqual(0.0, $info->currentAmount);
         $this->assertInstanceOf(\DateTimeImmutable::class, $info->lastUpdate, 'the sandbox contract is expected to carry a last-update timestamp');
+        $this->assertNotSame('', $info->contractId, 'the contract id should be echoed back');
+        $this->assertNotSame('', $info->currencyIsoCode, 'the contract should declare its currency');
+        $this->assertInstanceOf(\DateTimeImmutable::class, $info->startDate, 'the sandbox contract is expected to carry a validity start date');
     }
 }

@@ -23,11 +23,16 @@ declare(strict_types=1);
 namespace Amilon\Dto\Response;
 
 /**
- * One retailer (brand) whose gift cards a contract can sell in a given country.
+ * One retailer (brand) whose gift cards a contract can sell — the full documented
+ * `contracts/{id}/{culture}/retailers` row: identity, HQ location and contacts,
+ * localized copy, the code-spending rules (`isCombinable` / `isFractionable` /
+ * `codeValidityMonths` / `validitySaleDays`), the shop-details block, sale type,
+ * VAT and terms.
  *
- * A flat, version-shared projection of an entry in the
- * `contracts/{id}/{country}/retailers` response. Behaviour-free and unvalidated;
- * {@see \Amilon\Api\V1\Catalog\RetailerMapper} produces it from the raw API row.
+ * A flat, version-shared projection built by
+ * {@see \Amilon\Api\V2\Catalog\RetailerMapper}; behaviour-free and unvalidated.
+ * `saleViewTimeUnitId` is an Amilon-internal enum id for the sale view time
+ * unit; `vatValue` is the VAT rate as an integer percentage (e.g. `20` for 20%).
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
@@ -36,10 +41,30 @@ final readonly class RetailerDto
     public function __construct(
         public string $retailerId,
         public string $name,
-        public string $shortDescription,
-        public string $imageUrl,
-        public int $codeValidityMonths,
+        public string $country,
         public string $countryIsoAlpha3,
+        public string $region,
+        public string $county,
+        public string $city,
+        public string $address,
+        public string $zipCode,
+        public string $phone,
+        public string $email,
+        public string $shortDescription,
+        public string $longDescription,
+        public string $termsAndConditions,
+        public int $codeValidityMonths,
+        public string $imageUrl,
+        public string $slug,
+        public bool $retailerShopShowDetails,
+        public string $retailerShopDetailsText,
+        public bool $isCombinable,
+        public bool $isFractionable,
+        public int $validitySaleDays,
+        public int $saleViewTimeUnitId,
+        public string $retailerSaleType,
+        public int $vatValue,
+        public string $vatValueName,
     ) {
     }
 }

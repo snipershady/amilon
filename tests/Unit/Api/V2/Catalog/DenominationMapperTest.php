@@ -205,6 +205,43 @@ final class DenominationMapperTest extends AbstractTestCase
         $this->assertSame('', $merchant->extendedContent->category2);
     }
 
+    public function testItMapsThePerDenominationCompleteImageSizes(): void
+    {
+        $merchant = $this->mapper->mapMerchant([
+            'Code' => 'M-1',
+            'Denominations' => [
+                [
+                    'Code' => 'D-1',
+                    'Prices' => [['Price' => 10.0, 'NetPrice' => 10.0]],
+                    'Image136x86' => 'https://cdn.example/136x86.png',
+                    'Image461x292' => 'https://cdn.example/461x292.png',
+                    'Image200x200' => 'https://cdn.example/200x200.png',
+                    'Image300x190' => 'https://cdn.example/300x190.png',
+                    'Image560x292' => 'https://cdn.example/560x292.png',
+                ],
+            ],
+        ]);
+
+        $denomination = $merchant->denominations[0];
+        $this->assertSame('https://cdn.example/136x86.png', $denomination->image136x86);
+        $this->assertSame('https://cdn.example/461x292.png', $denomination->image461x292);
+        $this->assertSame('https://cdn.example/200x200.png', $denomination->image200x200);
+        $this->assertSame('https://cdn.example/300x190.png', $denomination->image300x190);
+        $this->assertSame('https://cdn.example/560x292.png', $denomination->image560x292);
+    }
+
+    public function testThePerDenominationImagesAreEmptyForThePlainListing(): void
+    {
+        $merchant = $this->mapper->mapMerchant([
+            'Code' => 'M-1',
+            'Denominations' => [['Code' => 'D-1', 'Prices' => []]],
+        ]);
+
+        $denomination = $merchant->denominations[0];
+        $this->assertSame('', $denomination->image136x86);
+        $this->assertSame('', $denomination->image560x292);
+    }
+
     public function testItSkipsNonObjectMerchantAndDenominationRows(): void
     {
         $collection = $this->mapper->mapCollection([

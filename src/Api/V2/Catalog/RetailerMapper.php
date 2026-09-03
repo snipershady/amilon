@@ -28,11 +28,12 @@ use TypeIdentifier\Service\EffectivePrimitiveTypeIdentifierServiceInterface;
 
 /**
  * Maps the V2 `contracts/{id}/{culture}/retailers` response — a JSON array of
- * PascalCase rows — into a {@see RetailerCollectionDto}.
+ * PascalCase rows — into a {@see RetailerCollectionDto}, reading the full
+ * documented field set.
  *
  * Every field read goes through {@see EffectivePrimitiveTypeIdentifierServiceInterface}
- * so a string `CodeValidityMonths` or a missing key resolves to a definite
- * scalar. Rows that are not objects are skipped.
+ * so a string `CodeValidityMonths`, a `0`/`1` `IsCombinable` or a missing key
+ * resolves to a definite scalar. Rows that are not objects are skipped.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
@@ -67,10 +68,30 @@ final readonly class RetailerMapper
         return new RetailerDto(
             retailerId: $this->types->getStringValueFromArray('RetailerId', $row, trim: true),
             name: $this->types->getStringValueFromArray('Name', $row, trim: true),
-            shortDescription: $this->types->getStringValueFromArray('ShortDescription', $row, trim: true),
-            imageUrl: $this->types->getStringValueFromArray('ImageUrl', $row, trim: true),
-            codeValidityMonths: $this->types->getIntValueFromArray('CodeValidityMonths', $row),
+            country: $this->types->getStringValueFromArray('Country', $row, trim: true),
             countryIsoAlpha3: $this->types->getStringValueFromArray('CountryISOAlpha3', $row, trim: true),
+            region: $this->types->getStringValueFromArray('Region', $row, trim: true),
+            county: $this->types->getStringValueFromArray('County', $row, trim: true),
+            city: $this->types->getStringValueFromArray('City', $row, trim: true),
+            address: $this->types->getStringValueFromArray('Address', $row, trim: true),
+            zipCode: $this->types->getStringValueFromArray('ZipCode', $row, trim: true),
+            phone: $this->types->getStringValueFromArray('Phone', $row, trim: true),
+            email: $this->types->getStringValueFromArray('Email', $row, trim: true),
+            shortDescription: $this->types->getStringValueFromArray('ShortDescription', $row, trim: true),
+            longDescription: $this->types->getStringValueFromArray('LongDescription', $row, trim: true),
+            termsAndConditions: $this->types->getStringValueFromArray('TermsAndConditions', $row, trim: true),
+            codeValidityMonths: $this->types->getIntValueFromArray('CodeValidityMonths', $row),
+            imageUrl: $this->types->getStringValueFromArray('ImageUrl', $row, trim: true),
+            slug: $this->types->getStringValueFromArray('Slug', $row, trim: true),
+            retailerShopShowDetails: $this->types->getBoolValueFromArray('RetailerShopShowDetails', $row),
+            retailerShopDetailsText: $this->types->getStringValueFromArray('RetailerShopDetailsText', $row, trim: true),
+            isCombinable: $this->types->getBoolValueFromArray('IsCombinable', $row),
+            isFractionable: $this->types->getBoolValueFromArray('IsFractionable', $row),
+            validitySaleDays: $this->types->getIntValueFromArray('ValiditySaleDays', $row),
+            saleViewTimeUnitId: $this->types->getIntValueFromArray('SaleViewTimeUnitId', $row),
+            retailerSaleType: $this->types->getStringValueFromArray('RetailerSaleType', $row, trim: true),
+            vatValue: $this->types->getIntValueFromArray('VatValue', $row),
+            vatValueName: $this->types->getStringValueFromArray('VatValueName', $row, trim: true),
         );
     }
 }

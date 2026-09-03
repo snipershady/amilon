@@ -50,6 +50,10 @@ namespace Amilon\Dto\Response;
 final readonly class DenominationDto
 {
     /**
+     * The `image*` fields are the denomination-specific artwork sizes the
+     * `denominations/complete` endpoint adds; they are empty strings for the
+     * plain `denominations` listing, which does not carry them.
+     *
      * @param list<DenominationPriceDto> $prices
      */
     public function __construct(
@@ -61,6 +65,11 @@ final readonly class DenominationDto
         public ?float $step,
         public ?float $discountValue,
         public array $prices,
+        public string $image136x86 = '',
+        public string $image461x292 = '',
+        public string $image200x200 = '',
+        public string $image300x190 = '',
+        public string $image560x292 = '',
     ) {
     }
 

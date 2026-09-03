@@ -39,26 +39,41 @@ final class ContractMapperTest extends AbstractTestCase
         $this->mapper = new ContractMapper(new EffectivePrimitiveTypeIdentifierService());
     }
 
-    public function testItMapsTheContractInfoCoercingAStringAmount(): void
+    public function testItMapsTheFullContractInfoCoercingStringAmounts(): void
     {
         $info = $this->mapper->map([
             'ContractId' => '7fb1c5d3-423e-4b0c-b8da-a3ed94ae6392',
+            'ContractName' => '  ACME Welfare 2026  ',
+            'CurrencyIsoCode' => 'EUR',
             'CurrentAmount' => '1234.56',
+            'PreviousAmount' => '2000',
+            'StartDate' => '2026-01-01T00:00:00+00:00',
+            'EndDate' => '2026-12-31T23:59:59+00:00',
             'LastUpdate' => '2026-03-15T10:30:00+00:00',
         ]);
 
         $this->assertSame('7fb1c5d3-423e-4b0c-b8da-a3ed94ae6392', $info->contractId);
+        $this->assertSame('ACME Welfare 2026', $info->contractName);
+        $this->assertSame('EUR', $info->currencyIsoCode);
         $this->assertEqualsWithDelta(1234.56, $info->currentAmount, PHP_FLOAT_EPSILON);
+        $this->assertEqualsWithDelta(2000.0, $info->previousAmount, PHP_FLOAT_EPSILON);
+        $this->assertInstanceOf(\DateTimeImmutable::class, $info->startDate);
+        $this->assertInstanceOf(\DateTimeImmutable::class, $info->endDate);
         $this->assertInstanceOf(\DateTimeImmutable::class, $info->lastUpdate);
         $this->assertSame((new \DateTimeImmutable('2026-03-15T10:30:00+00:00'))->getTimestamp(), $info->lastUpdate->getTimestamp());
     }
 
-    public function testMissingKeysYieldEmptyScalarsAndANullDate(): void
+    public function testMissingKeysYieldEmptyScalarsAndNullDates(): void
     {
         $info = $this->mapper->map([]);
 
         $this->assertSame('', $info->contractId);
+        $this->assertSame('', $info->contractName);
+        $this->assertSame('', $info->currencyIsoCode);
         $this->assertEqualsWithDelta(0.0, $info->currentAmount, PHP_FLOAT_EPSILON);
+        $this->assertEqualsWithDelta(0.0, $info->previousAmount, PHP_FLOAT_EPSILON);
+        $this->assertNotInstanceOf(\DateTimeImmutable::class, $info->startDate);
+        $this->assertNotInstanceOf(\DateTimeImmutable::class, $info->endDate);
         $this->assertNotInstanceOf(\DateTimeImmutable::class, $info->lastUpdate);
     }
 }

@@ -43,7 +43,10 @@ final class GetRetailersIntegrationTest extends AbstractIntegrationTestCase
         foreach ($retailers as $retailer) {
             $this->assertNotSame('', $retailer->retailerId);
             $this->assertNotSame('', $retailer->name);
+            $this->assertNotSame('', $retailer->countryIsoAlpha3);
             $this->assertGreaterThanOrEqual(0, $retailer->codeValidityMonths);
+            $this->assertGreaterThanOrEqual(0, $retailer->validitySaleDays);
+            $this->assertGreaterThanOrEqual(0, $retailer->vatValue);
         }
     }
 }
