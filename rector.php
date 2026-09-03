@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Rector\CodeQuality\Rector\Attribute\ExplicitAttributeNamedArgsRector;
 use Rector\CodingStyle\Rector\Stmt\NewlineAfterStatementRector;
 use Rector\Config\RectorConfig;
 use Rector\Naming\Rector\Assign\RenameVariableToMatchMethodCallReturnTypeRector;
@@ -19,6 +20,10 @@ return RectorConfig::configure()
                 ])
                 ->withSkip([
                     NewlineAfterStatementRector::class,
+                    // PHPUnit attributes (#[Group], #[DataProvider], …) are
+                    // @no-named-arguments; forcing named args on them makes
+                    // PHPStan (argument.named) fail. Keep attribute args positional.
+                    ExplicitAttributeNamedArgsRector::class,
                     RenamePropertyToMatchTypeRector::class,
                     RenameVariableToMatchMethodCallReturnTypeRector::class,
                     RenameVariableToMatchNewTypeRector::class,

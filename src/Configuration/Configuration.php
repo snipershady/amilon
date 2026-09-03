@@ -39,7 +39,7 @@ use Amilon\Exception\InvalidConfigurationException;
  *
  *   AMILON_USERNAME       AMILON_PASSWORD
  *   AMILON_CLIENT_ID      AMILON_CLIENT_SECRET
- *   AMILON_AUTH_DOMAIN    AMILON_WEB_DOMAIN
+ *   AMILON_AUTH_DOMAIN    AMILON_WEB_DOMAIN       AMILON_WEB_DOMAIN_V2
  *   AMILON_CONTRACT_ID
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
@@ -58,6 +58,7 @@ final readonly class Configuration
         'clientSecret' => 'AMILON_CLIENT_SECRET',
         'authDomain' => 'AMILON_AUTH_DOMAIN',
         'webDomain' => 'AMILON_WEB_DOMAIN',
+        'webDomainV2' => 'AMILON_WEB_DOMAIN_V2',
         'contractId' => 'AMILON_CONTRACT_ID',
     ];
 
@@ -67,7 +68,8 @@ final readonly class Configuration
      * @param non-empty-string $clientId
      * @param non-empty-string $clientSecret
      * @param non-empty-string $authDomain   absolute http(s) URL, guaranteed to end with a single "/"
-     * @param non-empty-string $webDomain    absolute http(s) URL, guaranteed to end with a single "/"
+     * @param non-empty-string $webDomain    V1 Web API base, absolute http(s) URL, guaranteed to end with a single "/"
+     * @param non-empty-string $webDomainV2  V2 Web API base, absolute http(s) URL, guaranteed to end with a single "/"
      * @param non-empty-string $contractId   lower-case UUID
      */
     private function __construct(
@@ -77,6 +79,7 @@ final readonly class Configuration
         public string $clientSecret,
         public string $authDomain,
         public string $webDomain,
+        public string $webDomainV2,
         public string $contractId,
     ) {
     }
@@ -125,6 +128,7 @@ final readonly class Configuration
             clientSecret: self::readRequired($values, 'clientSecret'),
             authDomain: self::readUrl($values, 'authDomain'),
             webDomain: self::readUrl($values, 'webDomain'),
+            webDomainV2: self::readUrl($values, 'webDomainV2'),
             contractId: self::readUuid($values, 'contractId'),
         );
     }
