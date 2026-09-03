@@ -59,3 +59,15 @@ final class GetProductsIntegrationTest extends AbstractIntegrationTestCase
   +visible: true
 }
  */
+
+/*
+  ^ Amilon\Dto\Response\ProductDto^ {#472
+  +productCode: "911d5af7-419b-ed11-b820-005056a53626"
+  +merchantCode: "f72c8dc7-8feb-4dad-bf66-39c8ed238a2b"
+  +name: "Carrefour - Gift Card 20,00 €"
+  +price: 20.0
+  +imageUrl: "https://eurob2b.amilon.eu/b2bfiles/products/8f42058d-64b2-4a98-a5d3-b35cb5d3ce03/logo/d1ded42006514f609a06b5a063328dab.png"
+  +active: true
+  +visible: true
+}
+ */
