@@ -7,6 +7,15 @@ automate the ordering, management and distribution of digital gift cards at scal
 [![CI](https://github.com/snipershady/amilon/actions/workflows/php.yml/badge.svg)](https://github.com/snipershady/amilon/actions/workflows/php.yml)
 [![License: GPL v2](https://img.shields.io/badge/License-GPLv2-blue.svg)](./LICENSE)
 
+> **Unofficial integration.** This is a community-maintained, open-source client.
+> It is **not** affiliated with, endorsed by, or supported by Amilon S.r.l.; all
+> product and company names are the property of their respective owners. Use it at
+> your own risk against your own Amilon contract.
+>
+> Contributions are always welcome — open an issue or a pull request. See
+> [Development](#development) for the local setup and the quality gate every
+> change must pass.
+
 ## Status
 
 **Early development.** The client covers authentication and the first resource
