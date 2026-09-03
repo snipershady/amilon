@@ -60,11 +60,23 @@ foreach ($merchants as $merchant) {
     }
 }
 
-// place an order: identify the item by merchant code + chosen face value
-$first = $merchants->all()[0];
-$price = $first->denominations[0]->prices[0]->price ?? $first->denominations[0]->rangeMin;
+// place an order: identify the item by merchant code + chosen face value.
+// pick the first denomination that can actually be ordered — one with an
+// explicit price or an open range (skip a denomination that has neither)
+$merchant = $merchants->all()[0];
+$denomination = $merchant->denominations[0];
+foreach ($merchants as $candidate) {
+    foreach ($candidate->denominations as $option) {
+        if ([] !== $option->prices || $option->isVariable()) {
+            [$merchant, $denomination] = [$candidate, $option];
+            break 2;
+        }
+    }
+}
+$price = $denomination->prices[0]->price ?? $denomination->rangeMin;
+
 $order = $client->makeOrder(
-    CreateOrderRequestDto::singleLineWithPrice('my-order-001', $first->code, 1, $price),
+    CreateOrderRequestDto::singleLineWithPrice('my-order-001', $merchant->code, 1, $price),
 );
 
 foreach ($order->vouchers as $voucher) {
@@ -140,58 +152,388 @@ the same regardless of which API revision answered. The client currently speaks
 | `getOrderInfo(string $externalOrderId)` | `GET orders/{externalOrderId}/complete` | `OrderDto` |
 | `getContractInfo()` | `GET contracts/{id}` | `ContractInfoDto` |
 
-- **`getToken()`** — the OAuth access token, fetched on first use and reused until
-  it is near expiry. Resource calls acquire it automatically; call this only when
-  you need the raw token. `AccessTokenDto` carries `accessToken`, `tokenType`,
-  `expiresAt` and an optional `refreshToken`, plus `isExpired()` and
-  `authorizationHeader()`.
-- **`getDenominations()` / `getDenominationsComplete()`** — take a `CountryEnum`
-  (`IT`, `ES`). The collection is iterable/countable (`all()`, `count()`,
-  `isEmpty()`) of `MerchantDenominationsDto`: one merchant (`code`, `name`,
-  `currency`, `vatValue`, …) with a `denominations` list of `DenominationDto`.
-  A `DenominationDto` carries `code`, `activationDate`, `imageUrl`, the nullable
-  `rangeMin` / `rangeMax` / `step` / `discountValue`, and a `prices` list of
-  `DenominationPriceDto` (`price`, `netPrice`); its shape is read with
-  `isFixed()`, `isVariable()`, `hasContractPriceOverride()`.
-  `getDenominationsComplete()` also fills `->extendedContent` with a
-  `MerchantContentDto` (long copy, extra logo sizes, category ids).
-- **`getProducts()`** — a **backward-compatibility view of `getDenominations()`**
-  for integrations written against the pre-v2 surface: it makes the same call and
-  flattens the merchant → denomination → price tree into the old flat
-  `ProductCollectionDto` (iterable/countable) of `ProductDto`. Each denomination
-  price point becomes one row; a variable (open-range) denomination becomes a
-  single row priced at its `rangeMin` with `rangeMin` / `rangeMax` / `step`
-  carried across. `ProductDto` keeps the original seven fields unchanged —
-  `productCode` (the denomination code), `merchantCode`, `name` (synthesised
-  `"{merchant} - {amount} {symbol}"`), `price`, `imageUrl`, `active`, `visible`
-  (the last two are always `true`; v2 has no such flags) — and adds `netPrice`,
-  `discountValue`, `currency`, `currencySymbol`, `rangeMin` / `rangeMax` / `step`,
-  `activationDate`, `merchantName`, `countryIsoAlpha3`. **New code should use
-  `getDenominations()`.**
-- **`getRetailers()`** — a `RetailerDto` has `retailerId`, `name`,
-  `shortDescription`, `imageUrl`, `codeValidityMonths`, `countryIsoAlpha3`.
-- **`makeOrder()`** — takes a self-contained `CreateOrderRequestDto`: your own
-  `externalOrderId` plus one `OrderLineDto` (`retailerId`, `quantity`, `price`)
-  per merchant. Build it with
-  `CreateOrderRequestDto::singleLineWithPrice($id, $retailerId, $qty, $price)` or
-  `::fromLines($id, [OrderLineDto::withPrice(...), ...])` — v2 identifies the item
-  by retailer id **and** face value, so a line with no price is rejected before
-  any HTTP call. Returns an `OrderDto`: `externalOrderId`, `orderStatus`,
-  `orderDate`, `grossAmount`, `netAmount`, and `vouchers` (a list of `VoucherDto`
-  — `voucherLink`, validity window, product and retailer ids). `vouchers` may be
-  empty right after the call while the order is processing.
-- **`makeOrderPostponed()`** — same request as `makeOrder()` (`CreateOrderRequestDto`,
-  same validation) and the same `OrderDto` back, but fulfilment is **deferred**:
-  Amilon registers the order now and issues the vouchers asynchronously, so the
-  returned `vouchers` list is normally empty. The confirmation still echoes your
-  `externalOrderId` and carries the status — call `getOrderInfo()` later to collect
-  the vouchers. Hits `POST orders/createpostponed/{contractId}`.
-- **`getOrderInfo()`** — the current state of an order you placed, keyed by the
-  `externalOrderId` you chose. Same `OrderDto` shape as `makeOrder()`; this is how
-  you pick up the vouchers of a `makeOrderPostponed()` order once it has been
-  fulfilled.
-- **`getContractInfo()`** — `ContractInfoDto` with `contractId`, `currentAmount`
-  (the spendable balance orders draw down) and `lastUpdate`.
+Each operation below shows a minimal call and the DTO it returns. The response
+blocks are `symfony/var-dumper` dumps of the actual objects (`+` public, `-`
+private property); string values are truncated for readability.
+
+### `getToken()`
+
+The OAuth access token for the configured credentials, fetched on first use and
+reused until it is near expiry. Resource calls acquire it automatically — call
+this only when you need the raw token (e.g. to call Amilon yourself).
+
+```php
+$token = $client->getToken();
+
+$token->authorizationHeader();   // "Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6..."
+$token->isExpired();             // false
+```
+
+**Response — `AccessTokenDto`**
+
+```
+Amilon\Dto\Response\AccessTokenDto {
+  +accessToken: "eyJhbGciOiJSUzI1NiIsImtpZCI6IkE3..."
+  +tokenType: "Bearer"                 // defaulted to "Bearer" when the payload omits it
+  +expiresAt: DateTimeImmutable @1773572400 { 2026-03-15 11:00:00.0 UTC (+00:00) }
+  +refreshToken: null                  // string when the SSO returns one, else null
+}
+```
+
+### `getDenominations(CountryEnum)`
+
+The merchants and their gift-card denominations the contract can sell in a
+country (`CountryEnum::IT`, `CountryEnum::ES`). The result is iterable and
+countable — `->all()`, `->count()`, `->isEmpty()`. Each merchant `code` is what
+you pass to `makeOrder()` as the retailer id.
+
+```php
+use Amilon\Enum\CountryEnum;
+
+$merchants = $client->getDenominations(CountryEnum::IT);
+
+foreach ($merchants as $merchant) {
+    foreach ($merchant->denominations as $denomination) {
+        $amount = $denomination->prices[0]->price ?? $denomination->rangeMin;
+        echo $merchant->name, ' ', $amount, ' ', $merchant->currencySymbol, PHP_EOL;
+    }
+}
+```
+
+**Response — `MerchantDenominationCollectionDto`**
+
+```
+Amilon\Dto\Response\MerchantDenominationCollectionDto {
+  // iterable + countable: ->all() ->count() ->isEmpty()
+  -merchants: array:12 [
+    0 => Amilon\Dto\Response\MerchantDenominationsDto {
+      +code: "f72c8dc7-8feb-4dad-bf66-39c8ed238a2b"   // <- retailerId for makeOrder()
+      +country: "Spain"
+      +countryIsoAlpha3: "ESP"
+      +name: "Carrefour"
+      +shortDescription: "Carrefour es una cadena de distribución multinacional..."
+      +longDescription: "<p>Carrefour es una cadena de distribuci&oacute;n...</p>"
+      +imageUrl: "https://eurob2b.amilon.eu/b2bfiles/retailers/f72c8dc7-.../logo/a6fd150c.png"
+      +slug: "carrefour-esp"
+      +currency: "Euro"
+      +currencySymbol: "€"
+      +rebateTypeName: "Sconto fisso per Retailer"
+      +vatValue: 0.0
+      +vatValueName: "FC IVA art. 6-quater"
+      +denominations: array:7 [
+        0 => Amilon\Dto\Response\DenominationDto {
+          +code: "911d5af7-419b-ed11-b820-005056a53626"
+          +activationDate: DateTimeImmutable @1674497920 { 2023-01-23 18:18:40.0 UTC (+00:00) }
+          +imageUrl: "https://eurob2b.amilon.eu/b2bfiles/products/8f42058d-.../logo/d1ded420.png"
+          +rangeMin: null
+          +rangeMax: null
+          +step: null
+          +discountValue: 0.01
+          +prices: array:1 [
+            0 => Amilon\Dto\Response\DenominationPriceDto {
+              +price: 20.0
+              +netPrice: 19.8
+            }
+          ]
+          // isFixed() => true   isVariable() => false   hasContractPriceOverride() => false
+        }
+        // 6 more fixed denominations: 100.0, 10.0, 25.0, 50.0, 5.0, 150.0
+      ]
+      +extendedContent: null            // only getDenominationsComplete() fills this
+    }
+    // 11 more merchants
+  ]
+}
+```
+
+A `DenominationDto` comes in one of three shapes — read them with the predicates,
+never by guessing from the raw fields:
+
+```
+// isVariable() — open span, empty prices; any multiple of step in [rangeMin, rangeMax] is orderable
+Amilon\Dto\Response\DenominationDto {
+  +code: "68675d82-979f-f011-aa09-005056841cb3"
+  +rangeMin: 5.0
+  +rangeMax: 500.0
+  +step: 5.0
+  +discountValue: 0.02
+  +prices: []
+}
+
+// hasContractPriceOverride() — no range, an explicit contract-fixed set of values
+Amilon\Dto\Response\DenominationDto {
+  +code: "68675d82-979f-f011-aa09-005056841cb3"
+  +rangeMin: null
+  +rangeMax: null
+  +step: null
+  +discountValue: null
+  +prices: array:7 [
+    0 => Amilon\Dto\Response\DenominationPriceDto { +price: 5.0  +netPrice: 5.0 }
+    1 => Amilon\Dto\Response\DenominationPriceDto { +price: 10.0 +netPrice: 10.0 }
+    // 25.0, 50.0, 100.0, 250.0, 500.0
+  ]
+}
+```
+
+### `getDenominationsComplete(CountryEnum)`
+
+Identical to `getDenominations()`, but every `MerchantDenominationsDto` also
+carries its editorial `->extendedContent` block (long copy, extra logo sizes,
+category ids).
+
+```php
+$merchants = $client->getDenominationsComplete(CountryEnum::IT);
+
+$content = $merchants->all()[0]->extendedContent;   // MerchantContentDto
+echo $content->termsAndConditions, PHP_EOL;
+```
+
+**Response — `MerchantDenominationCollectionDto`** (same as above, plus)
+
+```
+    0 => Amilon\Dto\Response\MerchantDenominationsDto {
+      +code: "875196f7-5e79-4e6d-8f8f-5e27f8fa2146"
+      +name: "IdeaShopping"
+      // ... same fields as getDenominations() ...
+      +extendedContent: Amilon\Dto\Response\MerchantContentDto {
+        +extraShortDescription: "Idea Shopping è la prima Gift Card digitale..."
+        +termsAndConditions: "INFORMAZIONI SULLA GIFT CARD IDEASHOPPING\r\n..."
+        +facebookFanPage: "https://www.facebook.com/IdeaShopping?fref=ts"
+        +image100x50: "https://b2bstg-web.amilon.eu/B2BFiles/retailers/.../idea_shopping.png"
+        +image150x150: "https://b2bstg-web.amilon.eu/B2BFiles/retailers/.../idea_shopping_logo_150x150.png"
+        +image180x70: "https://b2bstg-web.amilon.eu/B2BFiles/retailers/.../idea_shopping_logo_180x70.png"
+        +category1: "BDA7B640-2031-4F8B-8241-64D2C0B4B9EF"
+        +category2: ""                 // "" (never null) when the API omits a field
+        +category3: ""
+      }
+    }
+```
+
+### `getProducts(CountryEnum)`
+
+A **backward-compatibility view of `getDenominations()`** for integrations
+written against the pre-v2 surface: it makes the same call and flattens the
+merchant → denomination → price tree into the old flat `ProductCollectionDto`
+(iterable/countable) of `ProductDto`. One row per price point; a variable
+(open-range) denomination becomes a single row priced at its `rangeMin` with the
+range carried across; a denomination with neither prices nor range is dropped.
+`active` / `visible` are always `true` (v2 has no such flags) and `name` is
+synthesised `"{merchant} - {amount} {symbol}"`. **New code should use
+`getDenominations()`.**
+
+```php
+$products = $client->getProducts(CountryEnum::IT);
+
+foreach ($products as $product) {
+    echo $product->name, ' — ', $product->price, PHP_EOL;   // "Carrefour - 20,00 € — 20"
+}
+```
+
+**Response — `ProductCollectionDto`**
+
+```
+Amilon\Dto\Response\ProductCollectionDto {
+  // iterable + countable: ->all() ->count() ->isEmpty()
+  -products: array:84 [
+    0 => Amilon\Dto\Response\ProductDto {
+      +productCode: "911d5af7-419b-ed11-b820-005056a53626"   // denomination code; NOT unique per value
+      +merchantCode: "f72c8dc7-8feb-4dad-bf66-39c8ed238a2b"  // == MerchantDenominationsDto->code
+      +name: "Carrefour - 20,00 €"                           // synthesised
+      +price: 20.0
+      +imageUrl: "https://eurob2b.amilon.eu/b2bfiles/products/8f42058d-.../logo/d1ded420.png"
+      +active: true                                          // always true
+      +visible: true                                         // always true
+      +netPrice: 19.8
+      +discountValue: 0.01
+      +currency: "Euro"
+      +currencySymbol: "€"
+      +rangeMin: null
+      +rangeMax: null
+      +step: null
+      +activationDate: DateTimeImmutable @1674497920 { 2023-01-23 18:18:40.0 UTC (+00:00) }
+      +merchantName: "Carrefour"
+      +countryIsoAlpha3: "ESP"
+      // isVariablePriced() => false
+    }
+    // a variable denomination collapses to ONE row: price == rangeMin, rangeMin/rangeMax/step
+    // set, netPrice 0.0, isVariablePriced() => true
+  ]
+}
+```
+
+### `getRetailers(CountryEnum)`
+
+The retailers (brands) available to the contract in a country.
+
+```php
+$retailers = $client->getRetailers(CountryEnum::IT);
+
+foreach ($retailers as $retailer) {
+    echo $retailer->name, ' (', $retailer->codeValidityMonths, ' months)', PHP_EOL;
+}
+```
+
+**Response — `RetailerCollectionDto`**
+
+```
+Amilon\Dto\Response\RetailerCollectionDto {
+  // iterable + countable: ->all() ->count() ->isEmpty()
+  -retailers: array:120 [
+    0 => Amilon\Dto\Response\RetailerDto {
+      +retailerId: "42"
+      +name: "Amazon"
+      +shortDescription: "e-commerce"
+      +imageUrl: "https://eurob2b.amilon.eu/b2bfiles/retailers/.../amazon.png"
+      +codeValidityMonths: 24
+      +countryIsoAlpha3: "ITA"
+    }
+    // 119 more retailers
+  ]
+}
+```
+
+### `makeOrder(CreateOrderRequestDto)`
+
+Place an order with **immediate** fulfilment. The request is self-contained: your
+own `externalOrderId` plus one `OrderLineDto` (`retailerId`, `quantity`, `price`)
+per merchant. v2 identifies the item by retailer id **and** face value, so a line
+with no price is rejected (`InvalidOrderRequestException`) before any HTTP call.
+Spends real money on a `Environment::PRODUCTION` client — gate on
+`$client->isProduction()`.
+
+```php
+use Amilon\Dto\Request\CreateOrderRequestDto;
+use Amilon\Dto\Request\OrderLineDto;
+
+// one merchant, one face value
+$order = $client->makeOrder(
+    CreateOrderRequestDto::singleLineWithPrice('my-order-001', $merchantCode, 1, 20.0),
+);
+
+// or several merchants in a single order
+$order = $client->makeOrder(CreateOrderRequestDto::fromLines('my-order-002', [
+    OrderLineDto::withPrice($merchantCodeA, 2, 25.0),
+    OrderLineDto::withPrice($merchantCodeB, 1, 50.0),
+]));
+
+foreach ($order->vouchers as $voucher) {
+    echo $voucher->voucherLink, PHP_EOL;
+}
+```
+
+**Response — `OrderDto`**
+
+```
+Amilon\Dto\Response\OrderDto {
+  +externalOrderId: "my-order-001"       // echoed back from the request
+  +orderStatus: "Completed"
+  +orderDate: DateTimeImmutable @1773570600 { 2026-03-15 10:30:00.0 UTC (+00:00) }
+  +grossAmount: 20.0
+  +netAmount: 19.8
+  +vouchers: array:1 [
+    0 => Amilon\Dto\Response\VoucherDto {
+      +productId: "911d5af7-419b-ed11-b820-005056a53626"
+      +retailerId: "f72c8dc7-8feb-4dad-bf66-39c8ed238a2b"
+      +voucherLink: "https://voucher.amilon.eu/abc123"
+      +validityStartDate: DateTimeImmutable @1773532800 { 2026-03-15 00:00:00.0 UTC (+00:00) }
+      +validityEndDate: DateTimeImmutable @1805068800 { 2027-03-15 00:00:00.0 UTC (+00:00) }
+    }
+  ]
+}
+```
+
+> `vouchers` can be `[]` right after the call while Amilon is still issuing them —
+> read the order back with `getOrderInfo()`. `orderDate` and the voucher validity
+> dates are `null` when Amilon omits them or sends something unparseable.
+
+### `makeOrderPostponed(CreateOrderRequestDto)`
+
+Same request and same `OrderDto` back as `makeOrder()`, but fulfilment is
+**deferred**: Amilon registers the order now and issues the vouchers
+asynchronously, so `vouchers` is normally empty. The confirmation still echoes
+your `externalOrderId` and carries a status — collect the vouchers later with
+`getOrderInfo()`.
+
+```php
+$order = $client->makeOrderPostponed(
+    CreateOrderRequestDto::singleLineWithPrice('my-order-003', $merchantCode, 1, 20.0),
+);
+
+$order->orderStatus;   // e.g. "Pending"
+$order->vouchers;       // [] — issued later
+```
+
+**Response — `OrderDto`** (`vouchers` normally empty)
+
+```
+Amilon\Dto\Response\OrderDto {
+  +externalOrderId: "my-order-003"
+  +orderStatus: "Pending"
+  +orderDate: DateTimeImmutable @1773570600 { 2026-03-15 10:30:00.0 UTC (+00:00) }
+  +grossAmount: 20.0
+  +netAmount: 19.8
+  +vouchers: []
+}
+```
+
+### `getOrderInfo(string $externalOrderId)`
+
+Read back an order you placed, keyed by the `externalOrderId` you chose. Same
+`OrderDto` shape as `makeOrder()`; this is how you pick up the vouchers of a
+`makeOrderPostponed()` order once it has been fulfilled.
+
+```php
+$order = $client->getOrderInfo('my-order-003');
+
+if ('Completed' === $order->orderStatus) {
+    foreach ($order->vouchers as $voucher) {
+        echo $voucher->voucherLink, PHP_EOL;
+    }
+}
+```
+
+**Response — `OrderDto`** (same shape as `makeOrder()`; `vouchers` populated once fulfilled)
+
+```
+Amilon\Dto\Response\OrderDto {
+  +externalOrderId: "my-order-003"
+  +orderStatus: "Completed"
+  +orderDate: DateTimeImmutable @1773570600 { 2026-03-15 10:30:00.0 UTC (+00:00) }
+  +grossAmount: 20.0
+  +netAmount: 19.8
+  +vouchers: array:1 [
+    0 => Amilon\Dto\Response\VoucherDto {
+      +productId: "911d5af7-419b-ed11-b820-005056a53626"
+      +retailerId: "f72c8dc7-8feb-4dad-bf66-39c8ed238a2b"
+      +voucherLink: "https://voucher.amilon.eu/abc123"
+      +validityStartDate: DateTimeImmutable @1773532800 { 2026-03-15 00:00:00.0 UTC (+00:00) }
+      +validityEndDate: DateTimeImmutable @1805068800 { 2027-03-15 00:00:00.0 UTC (+00:00) }
+    }
+  ]
+}
+```
+
+### `getContractInfo()`
+
+The configured contract's spendable balance and when Amilon last recomputed it.
+
+```php
+$info = $client->getContractInfo();
+
+if ($info->currentAmount < 100.0) {
+    // top up before ordering
+}
+```
+
+**Response — `ContractInfoDto`**
+
+```
+Amilon\Dto\Response\ContractInfoDto {
+  +contractId: "1ab2c3d4-567e-4b0c-b8da-a3ed94ae6392"
+  +currentAmount: 1234.56              // the balance orders draw down
+  +lastUpdate: DateTimeImmutable @1773570600 { 2026-03-15 10:30:00.0 UTC (+00:00) }
+}
+```
 
 ## Errors
 
