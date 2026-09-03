@@ -23,6 +23,7 @@ declare(strict_types=1);
 namespace Amilon\Tests\Unit\Api\V2\Order;
 
 use Amilon\Api\V2\Order\OrderMapper;
+use Amilon\Enum\OrderStatus;
 use Amilon\Tests\AbstractTestCase;
 use TypeIdentifier\Service\EffectivePrimitiveTypeIdentifierService;
 
@@ -47,21 +48,39 @@ final class OrderMapperTest extends AbstractTestCase
             'OrderStatus' => 'Completed',
             'GrossAmount' => '12.50',
             'NetAmount' => 11,
+            'TotalRequestedCodes' => '3',
+            'PurchaseOrder' => 'PO-42',
             'Vouchers' => [
                 [
                     'ProductId' => 'PC-1',
                     'RetailerId' => 'R-1',
+                    'RetailerName' => 'Amazon',
+                    'RetailerCountry' => 'Italy',
+                    'RetailerCountryISOAlpha3' => 'ITA',
                     'VoucherLink' => 'https://voucher.example/abc',
                     'ValidityStartDate' => '2026-03-15T00:00:00+00:00',
                     'ValidityEndDate' => '2027-03-15T00:00:00+00:00',
+                    'CardCode' => 'CARD-9',
+                    'Pin' => '1234',
+                    'Name' => 'Ada',
+                    'Surname' => 'Lovelace',
+                    'Email' => 'ada@example.test',
+                    'Dedication' => 'Happy birthday',
+                    'OrderFrom' => 'ACME',
+                    'OrderTo' => 'Ada',
+                    'Amount' => '25.00',
+                    'Deleted' => false,
                 ],
             ],
         ]);
 
         $this->assertSame('ext-1', $confirmation->externalOrderId);
         $this->assertSame('Completed', $confirmation->orderStatus);
+        $this->assertSame(OrderStatus::COMPLETED, $confirmation->status());
         $this->assertEqualsWithDelta(12.5, $confirmation->grossAmount, PHP_FLOAT_EPSILON);
         $this->assertEqualsWithDelta(11.0, $confirmation->netAmount, PHP_FLOAT_EPSILON);
+        $this->assertSame(3, $confirmation->totalRequestedCodes);
+        $this->assertSame('PO-42', $confirmation->purchaseOrder);
         $this->assertInstanceOf(\DateTimeImmutable::class, $confirmation->orderDate);
         $this->assertSame((new \DateTimeImmutable('2026-03-15T10:30:00+00:00'))->getTimestamp(), $confirmation->orderDate->getTimestamp());
 
@@ -70,8 +89,16 @@ final class OrderMapperTest extends AbstractTestCase
         $voucher = $confirmation->vouchers[0];
         $this->assertSame('PC-1', $voucher->productId);
         $this->assertSame('R-1', $voucher->retailerId);
+        $this->assertSame('Amazon', $voucher->retailerName);
+        $this->assertSame('ITA', $voucher->retailerCountryIsoAlpha3);
         $this->assertSame('https://voucher.example/abc', $voucher->voucherLink);
         $this->assertInstanceOf(\DateTimeImmutable::class, $voucher->validityEndDate);
+        $this->assertSame('CARD-9', $voucher->cardCode);
+        $this->assertSame('1234', $voucher->pin);
+        $this->assertSame('Ada', $voucher->name);
+        $this->assertSame('ada@example.test', $voucher->email);
+        $this->assertEqualsWithDelta(25.0, $voucher->amount, PHP_FLOAT_EPSILON);
+        $this->assertFalse($voucher->deleted);
     }
 
     public function testMissingKeysYieldEmptyScalarsAndNoVouchers(): void
@@ -80,8 +107,11 @@ final class OrderMapperTest extends AbstractTestCase
 
         $this->assertSame('', $confirmation->externalOrderId);
         $this->assertSame('', $confirmation->orderStatus);
+        $this->assertNull($confirmation->status());
         $this->assertNotInstanceOf(\DateTimeImmutable::class, $confirmation->orderDate);
         $this->assertEqualsWithDelta(0.0, $confirmation->grossAmount, PHP_FLOAT_EPSILON);
+        $this->assertSame(0, $confirmation->totalRequestedCodes);
+        $this->assertSame('', $confirmation->purchaseOrder);
         $this->assertSame([], $confirmation->vouchers);
     }
 
@@ -114,5 +144,25 @@ final class OrderMapperTest extends AbstractTestCase
         $confirmation = $this->mapper->map(['Vouchers' => 'unexpected']);
 
         $this->assertSame([], $confirmation->vouchers);
+    }
+
+    public function testACancelledVoucherIsFlaggedDeleted(): void
+    {
+        $confirmation = $this->mapper->map([
+            'Vouchers' => [
+                ['RetailerId' => 'R-1', 'Deleted' => true],
+            ],
+        ]);
+
+        $this->assertArrayHasKey(0, $confirmation->vouchers);
+        $this->assertTrue($confirmation->vouchers[0]->deleted);
+    }
+
+    public function testAnUnmodelledOrderStatusKeepsTheRawStringButHasNoParsedCase(): void
+    {
+        $confirmation = $this->mapper->map(['OrderStatus' => 'Pending']);
+
+        $this->assertSame('Pending', $confirmation->orderStatus);
+        $this->assertNull($confirmation->status());
     }
 }

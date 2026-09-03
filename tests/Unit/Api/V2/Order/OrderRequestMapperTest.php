@@ -75,4 +75,54 @@ final class OrderRequestMapperTest extends AbstractTestCase
 
         $this->mapper->toPayload(CreateOrderRequestDto::singleLine('ext-3', 'R-1', 1));
     }
+
+    public function testThePostponedPayloadAddsTheCodeValidityStartDate(): void
+    {
+        $startDate = new \DateTimeImmutable('+2 weeks');
+
+        $payload = $this->mapper->toPostponedPayload(
+            CreateOrderRequestDto::singleLineWithPrice('ext-4', 'R-9', 1, 15.0),
+            $startDate,
+        );
+
+        $this->assertSame('ext-4', $payload['ExternalOrderId']);
+        $this->assertSame(
+            [['RetailerId' => 'R-9', 'Quantity' => 1, 'Price' => 15.0]],
+            $payload['OrderRows'],
+        );
+        $this->assertSame($startDate->format(\DateTimeInterface::ATOM), $payload['CodeValidityStartDate']);
+    }
+
+    public function testThePostponedPayloadRejectsAPastStartDate(): void
+    {
+        $this->expectException(InvalidOrderRequestException::class);
+        $this->expectExceptionMessage('in the future');
+
+        $this->mapper->toPostponedPayload(
+            CreateOrderRequestDto::singleLineWithPrice('ext-5', 'R-9', 1, 15.0),
+            new \DateTimeImmutable('-1 day'),
+        );
+    }
+
+    public function testThePostponedPayloadRejectsAStartDateMoreThanAMonthOut(): void
+    {
+        $this->expectException(InvalidOrderRequestException::class);
+        $this->expectExceptionMessage('at most one month');
+
+        $this->mapper->toPostponedPayload(
+            CreateOrderRequestDto::singleLineWithPrice('ext-6', 'R-9', 1, 15.0),
+            new \DateTimeImmutable('+2 months'),
+        );
+    }
+
+    public function testThePostponedPayloadStillRejectsAPricelessLine(): void
+    {
+        $this->expectException(InvalidOrderRequestException::class);
+        $this->expectExceptionMessage('needs a price');
+
+        $this->mapper->toPostponedPayload(
+            CreateOrderRequestDto::singleLine('ext-7', 'R-9', 1),
+            new \DateTimeImmutable('+2 weeks'),
+        );
+    }
 }

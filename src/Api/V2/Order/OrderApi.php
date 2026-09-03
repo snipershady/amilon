@@ -35,17 +35,19 @@ use Amilon\Http\AmilonHttpExecutor;
  *
  *  - `POST orders/create/{contractId}` — immediate fulfilment; body from
  *    {@see OrderRequestMapper} (`RetailerId` + `Price` per row)
- *  - `POST orders/createpostponed/{contractId}` — same body, deferred
- *    fulfilment: the order is registered now and its vouchers are issued later,
- *    so the response usually carries an empty `vouchers` list; poll
- *    {@see self::complete()} for them
- *  - `GET orders/{externalOrderId}/complete`
+ *  - `POST orders/createpostponed/{contractId}` — same order rows plus a
+ *    mandatory `CodeValidityStartDate`; fulfilment is deferred: the order is
+ *    registered now and its vouchers are issued later, so the response usually
+ *    carries an empty `vouchers` list; poll {@see self::complete()} for them
+ *  - `GET orders/{externalOrderId}` — order summary, no vouchers
+ *  - `GET orders/{externalOrderId}/complete` — order plus its issued vouchers
  *
  * All bearer-authenticated and all answered with the same shape, mapped by
  * {@see OrderMapper} — the order response did not change in V2. Reached through
  * {@see \Amilon\Service\AmilonClient::makeOrder()} /
  * {@see \Amilon\Service\AmilonClient::makeOrderPostponed()} /
- * {@see \Amilon\Service\AmilonClient::getOrderInfo()}.
+ * {@see \Amilon\Service\AmilonClient::getOrderInfo()} /
+ * {@see \Amilon\Service\AmilonClient::getOrderInfoComplete()}.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
@@ -68,54 +70,74 @@ final readonly class OrderApi
      */
     public function create(CreateOrderRequestDto $createOrderRequestDto): OrderDto
     {
-        return $this->submit('create', $createOrderRequestDto);
+        return $this->post('create', $this->requestMapper->toPayload($createOrderRequestDto));
     }
 
     /**
-     * `POST orders/createpostponed/{contractId}` — same request body as
-     * {@see self::create()}, but fulfilment is deferred: the response confirms
-     * the order and echoes its `externalOrderId` while `vouchers` is typically
-     * still empty. Read them back later with {@see self::complete()}.
+     * `POST orders/createpostponed/{contractId}` — same order rows as
+     * {@see self::create()} plus the mandatory `CodeValidityStartDate`, and
+     * fulfilment is deferred: the response confirms the order and echoes its
+     * `externalOrderId` while `vouchers` is typically still empty. Read them back
+     * later with {@see self::complete()}.
      *
-     * @throws InvalidOrderRequestException when a line carries no price
+     * @throws InvalidOrderRequestException when a line carries no price, or the date is past / more than a month out
      * @throws AuthenticationException      when the bearer token cannot be obtained
      * @throws ApiRequestException          when Amilon rejects the order
      */
-    public function createPostponed(CreateOrderRequestDto $createOrderRequestDto): OrderDto
-    {
-        return $this->submit('createpostponed', $createOrderRequestDto);
+    public function createPostponed(
+        CreateOrderRequestDto $createOrderRequestDto,
+        \DateTimeImmutable $codeValidityStartDate,
+    ): OrderDto {
+        return $this->post(
+            'createpostponed',
+            $this->requestMapper->toPostponedPayload($createOrderRequestDto, $codeValidityStartDate),
+        );
     }
 
     /**
+     * `GET orders/{externalOrderId}` — order summary: status and totals, no
+     * vouchers.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the order is unknown or the call fails
+     */
+    public function summary(string $externalOrderId): OrderDto
+    {
+        return $this->orderMapper->map(
+            $this->executor->get(sprintf('orders/%s', rawurlencode($externalOrderId))),
+        );
+    }
+
+    /**
+     * `GET orders/{externalOrderId}/complete` — the order plus its issued
+     * vouchers.
+     *
      * @throws AuthenticationException when the bearer token cannot be obtained
      * @throws ApiRequestException     when the order is unknown or the call fails
      */
     public function complete(string $externalOrderId): OrderDto
     {
-        $payload = $this->executor->get(
-            sprintf('orders/%s/complete', rawurlencode($externalOrderId)),
+        return $this->orderMapper->map(
+            $this->executor->get(sprintf('orders/%s/complete', rawurlencode($externalOrderId))),
         );
-
-        return $this->orderMapper->map($payload);
     }
 
     /**
-     * Shared body of {@see self::create()} / {@see self::createPostponed()}: the
-     * two differ only by the `orders/{operation}/{contractId}` path segment.
+     * Shared tail of {@see self::create()} / {@see self::createPostponed()}: the
+     * two differ only by the `orders/{operation}/{contractId}` path segment and
+     * the body their request mapper produced.
      *
-     * @param non-empty-string $operation
+     * @param non-empty-string     $operation
+     * @param array<string, mixed> $body
      *
-     * @throws InvalidOrderRequestException when a line carries no price
-     * @throws AuthenticationException      when the bearer token cannot be obtained
-     * @throws ApiRequestException          when Amilon rejects or cannot fulfil the order
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when Amilon rejects or cannot fulfil the order
      */
-    private function submit(string $operation, CreateOrderRequestDto $createOrderRequestDto): OrderDto
+    private function post(string $operation, array $body): OrderDto
     {
-        $payload = $this->executor->post(
+        return $this->orderMapper->map($this->executor->post(
             sprintf('orders/%s/%s', $operation, $this->configuration->contractId),
-            $this->requestMapper->toPayload($createOrderRequestDto),
-        );
-
-        return $this->orderMapper->map($payload);
+            $body,
+        ));
     }
 }

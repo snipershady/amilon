@@ -174,7 +174,38 @@ curl 'https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/contracts/1ab2c3d4-567e-4b0c-
 
 ---
 
-## 6. `makeOrder(CreateOrderRequestDto)` — place an order (immediate)
+## 6. `getRetailerCategories(?string $categoryId, ?string $categoryName)` — brand categories
+
+```
+GET https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/retailers/categories
+```
+
+Platform-wide, **not** contract-scoped. `$categoryId` / `$categoryName`, when
+given, are appended as a `http_build_query()` query string (`CategoryId=…`,
+`CategoryName=…`); with neither, the path has no query string.
+
+**Headers**
+
+```
+Accept: application/json
+Authorization: Bearer <access_token>
+```
+
+**Body** — none.
+
+```bash
+curl 'https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/retailers/categories' \
+  -H 'Accept: application/json' \
+  -H 'Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6...'
+
+curl 'https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/retailers/categories?CategoryName=Libri' \
+  -H 'Accept: application/json' \
+  -H 'Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6...'
+```
+
+---
+
+## 7. `makeOrder(CreateOrderRequestDto)` — place an order (immediate)
 
 ```
 POST https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/orders/create/{contractId}
@@ -227,16 +258,19 @@ curl -X POST 'https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/orders/create/1ab2c3d
   -d '{"ExternalOrderId":"my-order-001","OrderRows":[{"RetailerId":"f72c8dc7-8feb-4dad-bf66-39c8ed238a2b","Quantity":1,"Price":20.0}]}'
 ```
 
-> The Amilon API also accepts `PurchaseOrder`, per-row `Name` / `Surname` /
-> `Email` / `Dedication` / `OrderFrom` / `OrderTo`, and `ClearAuthId`
-> (`v1tov2.pdf`). This client does **not** send them.
+> The Amilon API also accepts `PurchaseOrder` and per-row `Name` / `Surname` /
+> `Email` / `Dedication` / `OrderFrom` / `OrderTo` (`api_doc.pdf`). This client
+> does **not** send them.
 
 ---
 
-## 7. `makeOrderPostponed(CreateOrderRequestDto)` — place an order (deferred)
+## 8. `makeOrderPostponed(CreateOrderRequestDto, DateTimeImmutable $codeValidityStartDate)` — place an order (deferred)
 
-Identical to section 6 except the path segment: `createpostponed` instead of
-`create`. Same headers, same request body, same `OrderRequestMapper`.
+Like section 7 but the path segment is `createpostponed` and the body carries one
+extra **required** top-level field, `CodeValidityStartDate` (`OrderRequestMapper::
+toPostponedPayload()`, ISO-8601 / `DateTimeInterface::ATOM`). The client rejects a
+date that is not in the future or is more than one month out with
+`InvalidOrderRequestException` before any HTTP call.
 
 ```
 POST https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/orders/createpostponed/{contractId}
@@ -250,14 +284,15 @@ Authorization: Bearer <access_token>
 Content-Type: application/json
 ```
 
-**Body** — `application/json`, same shape as `makeOrder()`:
+**Body** — `application/json`, `makeOrder()` shape plus `CodeValidityStartDate`:
 
 ```json
 {
   "ExternalOrderId": "my-order-003",
   "OrderRows": [
     { "RetailerId": "f72c8dc7-8feb-4dad-bf66-39c8ed238a2b", "Quantity": 1, "Price": 20.0 }
-  ]
+  ],
+  "CodeValidityStartDate": "2026-09-10T12:00:00+00:00"
 }
 ```
 
@@ -266,12 +301,38 @@ curl -X POST 'https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/orders/createpostpone
   -H 'Accept: application/json' \
   -H 'Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6...' \
   -H 'Content-Type: application/json' \
-  -d '{"ExternalOrderId":"my-order-003","OrderRows":[{"RetailerId":"f72c8dc7-8feb-4dad-bf66-39c8ed238a2b","Quantity":1,"Price":20.0}]}'
+  -d '{"ExternalOrderId":"my-order-003","OrderRows":[{"RetailerId":"f72c8dc7-8feb-4dad-bf66-39c8ed238a2b","Quantity":1,"Price":20.0}],"CodeValidityStartDate":"2026-09-10T12:00:00+00:00"}'
 ```
 
 ---
 
-## 8. `getOrderInfo(string $externalOrderId)` — read an order back
+## 9. `getOrderInfo(string $externalOrderId)` — order summary
+
+```
+GET https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/orders/{externalOrderId}
+```
+
+`{externalOrderId}` is `rawurlencode()`d into the path. Status and totals only —
+no vouchers.
+
+**Headers**
+
+```
+Accept: application/json
+Authorization: Bearer <access_token>
+```
+
+**Body** — none.
+
+```bash
+curl 'https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/orders/my-order-003' \
+  -H 'Accept: application/json' \
+  -H 'Authorization: Bearer eyJhbGciOiJSUzI1NiIsImtpZCI6...'
+```
+
+---
+
+## 10. `getOrderInfoComplete(string $externalOrderId)` — order + vouchers
 
 ```
 GET https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/orders/{externalOrderId}/complete
@@ -296,7 +357,7 @@ curl 'https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/orders/my-order-003/complete'
 
 ---
 
-## 9. `getContractInfo()` — contract balance
+## 11. `getContractInfo()` — contract balance
 
 ```
 GET https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/contracts/{contractId}
@@ -328,10 +389,12 @@ curl 'https://b2bstg-webapi.amilon.eu/b2bwebapi/v2/contracts/1ab2c3d4-567e-4b0c-
 | 3 | `getDenominationsComplete()` | GET | `contracts/{contractId}/{culture}/denominations/complete` | — |
 | 4 | `getProducts()` | GET | `contracts/{contractId}/{culture}/denominations` *(reshaped client-side)* | — |
 | 5 | `getRetailers()` | GET | `contracts/{contractId}/{culture}/retailers` | — |
-| 6 | `makeOrder()` | POST | `orders/create/{contractId}` | JSON: `ExternalOrderId`, `OrderRows[]{RetailerId,Quantity,Price}` |
-| 7 | `makeOrderPostponed()` | POST | `orders/createpostponed/{contractId}` | JSON: same as #6 |
-| 8 | `getOrderInfo()` | GET | `orders/{externalOrderId}/complete` | — |
-| 9 | `getContractInfo()` | GET | `contracts/{contractId}` | — |
+| 6 | `getRetailerCategories()` | GET | `retailers/categories` *(+ optional `?CategoryId=…&CategoryName=…`)* | — |
+| 7 | `makeOrder()` | POST | `orders/create/{contractId}` | JSON: `ExternalOrderId`, `OrderRows[]{RetailerId,Quantity,Price}` |
+| 8 | `makeOrderPostponed()` | POST | `orders/createpostponed/{contractId}` | JSON: #7 + `CodeValidityStartDate` |
+| 9 | `getOrderInfo()` | GET | `orders/{externalOrderId}` | — |
+| 10 | `getOrderInfoComplete()` | GET | `orders/{externalOrderId}/complete` | — |
+| 11 | `getContractInfo()` | GET | `contracts/{contractId}` | — |
 
-Common to 2–9: `Accept: application/json` + `Authorization: Bearer <access_token>`
+Common to 2–11: `Accept: application/json` + `Authorization: Bearer <access_token>`
 (POSTs add `Content-Type: application/json`).

@@ -28,10 +28,12 @@ use Amilon\Dto\Response\ContractInfoDto;
 use Amilon\Dto\Response\MerchantDenominationCollectionDto;
 use Amilon\Dto\Response\OrderDto;
 use Amilon\Dto\Response\ProductCollectionDto;
+use Amilon\Dto\Response\RetailerCategoryCollectionDto;
 use Amilon\Dto\Response\RetailerCollectionDto;
 use Amilon\Enum\CountryEnum;
 use Amilon\Exception\ApiRequestException;
 use Amilon\Exception\AuthenticationException;
+use Amilon\Exception\InvalidOrderRequestException;
 
 /**
  * The version-agnostic set of Amilon Web API operations.
@@ -96,6 +98,15 @@ interface AmilonApiInterface
     public function getRetailers(CountryEnum $countryEnum): RetailerCollectionDto;
 
     /**
+     * The platform-wide list of brand categories, optionally narrowed by
+     * category id and/or name (V2 `retailers/categories`).
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the catalogue call itself fails
+     */
+    public function getRetailerCategories(?string $categoryId = null, ?string $categoryName = null): RetailerCategoryCollectionDto;
+
+    /**
      * Place an order for the products and quantities the request carries, with
      * immediate fulfilment.
      *
@@ -106,24 +117,36 @@ interface AmilonApiInterface
 
     /**
      * Place an order with **deferred** fulfilment (`createpostponed`): Amilon
-     * registers it now and issues the vouchers later. Same request as
-     * {@see self::makeOrder()} and the same {@see OrderDto} back, but its
-     * `vouchers` list is usually still empty — read it again with
-     * {@see self::getOrderInfo()} once fulfilment has run.
+     * registers it now and issues the vouchers later, valid from
+     * $codeValidityStartDate (which it accepts only when in the future and at
+     * most a month out). Same order rows as {@see self::makeOrder()} and the same
+     * {@see OrderDto} back, but its `vouchers` list is usually still empty — read
+     * it again with {@see self::getOrderInfoComplete()} once fulfilment has run.
      *
-     * @throws AuthenticationException when the bearer token cannot be obtained
-     * @throws ApiRequestException     when Amilon rejects the order
+     * @throws InvalidOrderRequestException when the request or the date is malformed
+     * @throws AuthenticationException      when the bearer token cannot be obtained
+     * @throws ApiRequestException          when Amilon rejects the order
      */
-    public function makeOrderPostponed(CreateOrderRequestDto $createOrderRequestDto): OrderDto;
+    public function makeOrderPostponed(CreateOrderRequestDto $createOrderRequestDto, \DateTimeImmutable $codeValidityStartDate): OrderDto;
 
     /**
-     * Read back an order previously placed under $externalOrderId, including its
-     * current status and issued vouchers.
+     * Order summary for $externalOrderId — status and totals, no vouchers (V2
+     * `orders/{externalOrderId}`). Use {@see self::getOrderInfoComplete()} to get
+     * the issued vouchers too.
      *
      * @throws AuthenticationException when the bearer token cannot be obtained
      * @throws ApiRequestException     when the order is unknown or the call fails
      */
     public function getOrderInfo(string $externalOrderId): OrderDto;
+
+    /**
+     * The full order for $externalOrderId — status, totals and every issued
+     * voucher (V2 `orders/{externalOrderId}/complete`).
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the order is unknown or the call fails
+     */
+    public function getOrderInfoComplete(string $externalOrderId): OrderDto;
 
     /**
      * The configured contract's balance and last-update time.

@@ -53,12 +53,15 @@ final class MakeOrderPostponedIntegrationTest extends AbstractIntegrationTestCas
         [$merchant, $denomination] = $this->firstOrderableDenomination($client->getDenominations(CountryEnum::IT));
 
         $externalOrderId = 'amilon-lib-it-postponed-' . bin2hex(random_bytes(8));
-        $confirmation = $client->makeOrderPostponed(CreateOrderRequestDto::singleLineWithPrice(
-            $externalOrderId,
-            $merchant->code,
-            1,
-            $this->pickOrderablePrice($denomination),
-        ));
+        $confirmation = $client->makeOrderPostponed(
+            CreateOrderRequestDto::singleLineWithPrice(
+                $externalOrderId,
+                $merchant->code,
+                1,
+                $this->pickOrderablePrice($denomination),
+            ),
+            new \DateTimeImmutable('+7 days'),
+        );
 
         $this->assertSame($externalOrderId, $confirmation->externalOrderId);
         $this->assertNotSame('', $confirmation->orderStatus);
@@ -72,12 +75,15 @@ final class MakeOrderPostponedIntegrationTest extends AbstractIntegrationTestCas
         [$merchant, $denomination] = $this->firstOrderableDenomination($client->getDenominations(CountryEnum::IT));
 
         $externalOrderId = 'amilon-lib-it-postponed-' . bin2hex(random_bytes(8));
-        $client->makeOrderPostponed(CreateOrderRequestDto::singleLineWithPrice(
-            $externalOrderId,
-            $merchant->code,
-            1,
-            $this->pickOrderablePrice($denomination),
-        ));
+        $client->makeOrderPostponed(
+            CreateOrderRequestDto::singleLineWithPrice(
+                $externalOrderId,
+                $merchant->code,
+                1,
+                $this->pickOrderablePrice($denomination),
+            ),
+            new \DateTimeImmutable('+7 days'),
+        );
 
         $readBack = $client->getOrderInfo($externalOrderId);
 

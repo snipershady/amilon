@@ -26,7 +26,6 @@ use Amilon\Exception\ApiRequestException;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
-use TypeIdentifier\Service\EffectivePrimitiveTypeIdentifierServiceInterface;
 
 /**
  * Turns a {@see ResponseInterface} into the decoded array the mappers consume,
@@ -34,21 +33,17 @@ use TypeIdentifier\Service\EffectivePrimitiveTypeIdentifierServiceInterface;
  *
  * Every Amilon HTTP call — token acquisition included — funnels through here so
  * transport failure, non-2xx status and non-JSON bodies are reported the same
- * way. On a non-2xx status it also lifts a short human-readable reason out of the
- * error body (OAuth `error_description`, RFC 7807 `detail`/`title`, …) into the
- * exception message.
+ * way. On a non-2xx status it runs the error body through {@see ApiErrorMapper}
+ * so the resulting {@see ApiRequestException} carries the parsed
+ * {@see \Amilon\Enum\AmilonErrorCode}, the human-readable message and any
+ * `ModelErrors` validation lines.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
 final readonly class AmilonResponseParser
 {
-    /**
-     * @var list<string> error-body keys tried, in order, for a message on a non-2xx response
-     */
-    private const array ERROR_MESSAGE_KEYS = ['error_description', 'error', 'detail', 'title', 'Message', 'message'];
-
     public function __construct(
-        private EffectivePrimitiveTypeIdentifierServiceInterface $types,
+        private ApiErrorMapper $apiErrorMapper,
     ) {
     }
 
@@ -69,25 +64,9 @@ final readonly class AmilonResponseParser
         }
 
         if ($statusCode < 200 || $statusCode >= 300) {
-            throw ApiRequestException::httpError($method, $path, $statusCode, $this->describeError($payload));
+            throw ApiRequestException::httpError($method, $path, $statusCode, $this->apiErrorMapper->fromPayload($payload));
         }
 
         return $payload;
-    }
-
-    /**
-     * @param array<array-key, mixed> $payload
-     */
-    private function describeError(array $payload): string
-    {
-        foreach (self::ERROR_MESSAGE_KEYS as $key) {
-            $value = $this->types->getStringValueFromArray($key, $payload, trim: true);
-
-            if ('' !== $value) {
-                return $value;
-            }
-        }
-
-        return '';
     }
 }

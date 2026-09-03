@@ -24,11 +24,14 @@ namespace Amilon\Dto\Response;
 
 /**
  * One issued gift card in an {@see OrderDto}: the redeemable link and its
- * validity window, plus which product and retailer it belongs to.
+ * validity window, the security material needed to spend it (`cardCode` / `pin`,
+ * kept for legacy redemption flows), which product and retailer it belongs to,
+ * and the recipient/sender details echoed back from the order row.
  *
- * A flat, version-shared projection of an entry in the order-create response's
- * `Vouchers` array. Dates are `null` when Amilon omits them or sends something
- * unparseable.
+ * A flat, version-shared projection of an entry in the order response's
+ * `Vouchers` array — the same shape for `CreateOrder`, `CreateOrderPostponed`
+ * and `getOrderInfoComplete`. Dates are `null` when Amilon omits them or sends
+ * something unparseable.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
@@ -37,9 +40,22 @@ final readonly class VoucherDto
     public function __construct(
         public string $productId,
         public string $retailerId,
+        public string $retailerName,
+        public string $retailerCountry,
+        public string $retailerCountryIsoAlpha3,
         public string $voucherLink,
         public ?\DateTimeImmutable $validityStartDate,
         public ?\DateTimeImmutable $validityEndDate,
+        public string $cardCode,
+        public string $pin,
+        public string $name,
+        public string $surname,
+        public string $email,
+        public string $dedication,
+        public string $orderFrom,
+        public string $orderTo,
+        public float $amount,
+        public bool $deleted,
     ) {
     }
 }

@@ -28,6 +28,7 @@ use Amilon\Api\V2\Catalog\DenominationApi;
 use Amilon\Api\V2\Catalog\DenominationMapper;
 use Amilon\Api\V2\Catalog\ProductCompatMapper;
 use Amilon\Api\V2\Catalog\RetailerApi;
+use Amilon\Api\V2\Catalog\RetailerCategoryMapper;
 use Amilon\Api\V2\Catalog\RetailerMapper;
 use Amilon\Api\V2\Contract\ContractApi;
 use Amilon\Api\V2\Contract\ContractMapper;
@@ -41,6 +42,7 @@ use Amilon\Dto\CredentialDto;
 use Amilon\Exception\InvalidConfigurationException;
 use Amilon\Http\AmilonHttpExecutor;
 use Amilon\Http\AmilonResponseParser;
+use Amilon\Http\ApiErrorMapper;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use TypeIdentifier\Service\EffectivePrimitiveTypeIdentifierService;
@@ -99,7 +101,7 @@ final class AmilonClientFactory
         HttpClientInterface $httpClient,
     ): AmilonApiInterface {
         $types = new EffectivePrimitiveTypeIdentifierService();
-        $responseParser = new AmilonResponseParser($types);
+        $responseParser = new AmilonResponseParser(new ApiErrorMapper($types));
 
         return match ($apiVersion) {
             ApiVersion::V2 => self::buildV2Api($configuration, $httpClient, $types, $responseParser),
@@ -128,7 +130,12 @@ final class AmilonClientFactory
         return new V2Api(
             $tokenProvider,
             new DenominationApi($executor, $configuration, new DenominationMapper($effectivePrimitiveTypeIdentifierService)),
-            new RetailerApi($executor, $configuration, new RetailerMapper($effectivePrimitiveTypeIdentifierService)),
+            new RetailerApi(
+                $executor,
+                $configuration,
+                new RetailerMapper($effectivePrimitiveTypeIdentifierService),
+                new RetailerCategoryMapper($effectivePrimitiveTypeIdentifierService),
+            ),
             new OrderApi(
                 $executor,
                 $configuration,

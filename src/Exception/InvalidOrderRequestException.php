@@ -25,8 +25,9 @@ namespace Amilon\Exception;
 /**
  * Thrown when the caller hands {@see \Amilon\Dto\Request\CreateOrderRequestDto}
  * data that cannot describe a valid order — a blank external id, no order lines,
- * a blank retailer id, a quantity below one, a non-positive price, or (for the
- * V2 wire shape) a line with no price at all.
+ * a blank retailer id, a quantity below one, a non-positive price, (for the V2
+ * wire shape) a line with no price at all, or a postponed order whose code
+ * validity start date is in the past or more than a month out.
  *
  * Like {@see InvalidConfigurationException} this is a caller mistake caught
  * before any HTTP call — at DTO construction, or in
@@ -75,6 +76,14 @@ final class InvalidOrderRequestException extends \InvalidArgumentException imple
         return new self(sprintf(
             'The order line for retailer "%s" needs a price: the V2 order API identifies a denomination by retailer id and price.',
             $retailerId,
+        ));
+    }
+
+    public static function codeValidityStartDateOutOfRange(\DateTimeInterface $codeValidityStartDate): self
+    {
+        return new self(sprintf(
+            'A postponed order needs a code validity start date in the future and at most one month out, got %s.',
+            $codeValidityStartDate->format(\DateTimeInterface::ATOM),
         ));
     }
 }

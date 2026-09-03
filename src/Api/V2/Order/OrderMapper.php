@@ -29,8 +29,10 @@ use TypeIdentifier\Service\EffectivePrimitiveTypeIdentifierServiceInterface;
 
 /**
  * Maps the V2 order response — PascalCase, with a nested `Vouchers` array — into
- * an {@see OrderDto}. Both `orders/create/{contractId}` and
- * `orders/{externalOrderId}/complete` answer with this shape, unchanged from V1.
+ * an {@see OrderDto}. Every order endpoint answers with this shape:
+ * `orders/create/{contractId}`, `orders/createpostponed/{contractId}`,
+ * `orders/{externalOrderId}` (summary, no `Vouchers`) and
+ * `orders/{externalOrderId}/complete`.
  *
  * Scalars go through {@see EffectivePrimitiveTypeIdentifierServiceInterface};
  * the `Vouchers` list is walked structurally with per-row `is_array()` guards;
@@ -58,6 +60,8 @@ final readonly class OrderMapper
             ),
             grossAmount: $this->types->getFloatValueFromArray('GrossAmount', $payload),
             netAmount: $this->types->getFloatValueFromArray('NetAmount', $payload),
+            totalRequestedCodes: $this->types->getIntValueFromArray('TotalRequestedCodes', $payload),
+            purchaseOrder: $this->types->getStringValueFromArray('PurchaseOrder', $payload, trim: true),
             vouchers: $this->mapVouchers($payload['Vouchers'] ?? null),
         );
     }
@@ -90,6 +94,9 @@ final readonly class OrderMapper
         return new VoucherDto(
             productId: $this->types->getStringValueFromArray('ProductId', $row, trim: true),
             retailerId: $this->types->getStringValueFromArray('RetailerId', $row, trim: true),
+            retailerName: $this->types->getStringValueFromArray('RetailerName', $row, trim: true),
+            retailerCountry: $this->types->getStringValueFromArray('RetailerCountry', $row, trim: true),
+            retailerCountryIsoAlpha3: $this->types->getStringValueFromArray('RetailerCountryISOAlpha3', $row, trim: true),
             voucherLink: $this->types->getStringValueFromArray('VoucherLink', $row, trim: true),
             validityStartDate: DateParser::nullable(
                 $this->types->getStringValueFromArray('ValidityStartDate', $row, trim: true),
@@ -97,6 +104,16 @@ final readonly class OrderMapper
             validityEndDate: DateParser::nullable(
                 $this->types->getStringValueFromArray('ValidityEndDate', $row, trim: true),
             ),
+            cardCode: $this->types->getStringValueFromArray('CardCode', $row, trim: true),
+            pin: $this->types->getStringValueFromArray('Pin', $row, trim: true),
+            name: $this->types->getStringValueFromArray('Name', $row, trim: true),
+            surname: $this->types->getStringValueFromArray('Surname', $row, trim: true),
+            email: $this->types->getStringValueFromArray('Email', $row, trim: true),
+            dedication: $this->types->getStringValueFromArray('Dedication', $row, trim: true),
+            orderFrom: $this->types->getStringValueFromArray('OrderFrom', $row, trim: true),
+            orderTo: $this->types->getStringValueFromArray('OrderTo', $row, trim: true),
+            amount: $this->types->getFloatValueFromArray('Amount', $row),
+            deleted: $this->types->getBoolValueFromArray('Deleted', $row),
         );
     }
 }

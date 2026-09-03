@@ -35,6 +35,7 @@ use Amilon\Dto\Response\ContractInfoDto;
 use Amilon\Dto\Response\MerchantDenominationCollectionDto;
 use Amilon\Dto\Response\OrderDto;
 use Amilon\Dto\Response\ProductCollectionDto;
+use Amilon\Dto\Response\RetailerCategoryCollectionDto;
 use Amilon\Dto\Response\RetailerCollectionDto;
 use Amilon\Enum\CountryEnum;
 
@@ -96,19 +97,31 @@ final readonly class V2Api implements AmilonApiInterface
     }
 
     #[\Override]
+    public function getRetailerCategories(?string $categoryId = null, ?string $categoryName = null): RetailerCategoryCollectionDto
+    {
+        return $this->retailerApi->categories($categoryId, $categoryName);
+    }
+
+    #[\Override]
     public function makeOrder(CreateOrderRequestDto $createOrderRequestDto): OrderDto
     {
         return $this->orderApi->create($createOrderRequestDto);
     }
 
     #[\Override]
-    public function makeOrderPostponed(CreateOrderRequestDto $createOrderRequestDto): OrderDto
+    public function makeOrderPostponed(CreateOrderRequestDto $createOrderRequestDto, \DateTimeImmutable $codeValidityStartDate): OrderDto
     {
-        return $this->orderApi->createPostponed($createOrderRequestDto);
+        return $this->orderApi->createPostponed($createOrderRequestDto, $codeValidityStartDate);
     }
 
     #[\Override]
     public function getOrderInfo(string $externalOrderId): OrderDto
+    {
+        return $this->orderApi->summary($externalOrderId);
+    }
+
+    #[\Override]
+    public function getOrderInfoComplete(string $externalOrderId): OrderDto
     {
         return $this->orderApi->complete($externalOrderId);
     }

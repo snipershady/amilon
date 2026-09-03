@@ -30,11 +30,13 @@ use Amilon\Dto\Response\ContractInfoDto;
 use Amilon\Dto\Response\MerchantDenominationCollectionDto;
 use Amilon\Dto\Response\OrderDto;
 use Amilon\Dto\Response\ProductCollectionDto;
+use Amilon\Dto\Response\RetailerCategoryCollectionDto;
 use Amilon\Dto\Response\RetailerCollectionDto;
 use Amilon\Enum\CountryEnum;
 use Amilon\Enum\Environment;
 use Amilon\Exception\ApiRequestException;
 use Amilon\Exception\AuthenticationException;
+use Amilon\Exception\InvalidOrderRequestException;
 
 /**
  * Entry point of the library: the version-less Amilon Web API surface.
@@ -144,6 +146,20 @@ final readonly class AmilonClient
     }
 
     /**
+     * The platform-wide list of brand categories and their translated names,
+     * optionally narrowed by category id and/or name — useful to build a
+     * category filter over {@see self::getRetailers()} /
+     * {@see self::getDenominations()}.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the catalogue call itself fails
+     */
+    public function getRetailerCategories(?string $categoryId = null, ?string $categoryName = null): RetailerCategoryCollectionDto
+    {
+        return $this->api->getRetailerCategories($categoryId, $categoryName);
+    }
+
+    /**
      * Place an order for the products and quantities the request carries, with
      * immediate fulfilment.
      *
@@ -161,25 +177,31 @@ final readonly class AmilonClient
 
     /**
      * Place an order with **deferred** fulfilment (V2 `createpostponed`): Amilon
-     * accepts and registers it now and issues the vouchers asynchronously. The
-     * returned {@see OrderDto} confirms the order and echoes its
-     * `externalOrderId`, but its `vouchers` list is usually still empty — call
-     * {@see self::getOrderInfo()} again later to collect them.
+     * accepts and registers it now and issues the vouchers asynchronously, valid
+     * from $codeValidityStartDate. Amilon only accepts a date that is in the
+     * future and at most one month out; a date outside that window is rejected
+     * with {@see InvalidOrderRequestException} before any HTTP call. The returned
+     * {@see OrderDto} confirms the order and echoes its `externalOrderId`, but
+     * its `vouchers` list is usually still empty — call
+     * {@see self::getOrderInfoComplete()} again later to collect them.
      *
      * Like {@see self::makeOrder()} this spends real money on a
      * {@see Environment::PRODUCTION} client — gate it on {@see self::isProduction()}.
      *
-     * @throws AuthenticationException when the bearer token cannot be obtained
-     * @throws ApiRequestException     when Amilon rejects the order
+     * @throws InvalidOrderRequestException when the request or $codeValidityStartDate is malformed
+     * @throws AuthenticationException      when the bearer token cannot be obtained
+     * @throws ApiRequestException          when Amilon rejects the order
      */
-    public function makeOrderPostponed(CreateOrderRequestDto $createOrderRequestDto): OrderDto
+    public function makeOrderPostponed(CreateOrderRequestDto $createOrderRequestDto, \DateTimeImmutable $codeValidityStartDate): OrderDto
     {
-        return $this->api->makeOrderPostponed($createOrderRequestDto);
+        return $this->api->makeOrderPostponed($createOrderRequestDto, $codeValidityStartDate);
     }
 
     /**
-     * Read back an order previously placed under $externalOrderId — its current
-     * status and the vouchers issued for it.
+     * Order summary for a previously placed $externalOrderId — its current
+     * status and totals, without the issued vouchers (V2
+     * `orders/{externalOrderId}`). Use {@see self::getOrderInfoComplete()} when
+     * you need the vouchers too.
      *
      * @throws AuthenticationException when the bearer token cannot be obtained
      * @throws ApiRequestException     when the order is unknown or the call fails
@@ -187,6 +209,20 @@ final readonly class AmilonClient
     public function getOrderInfo(string $externalOrderId): OrderDto
     {
         return $this->api->getOrderInfo($externalOrderId);
+    }
+
+    /**
+     * The full order for a previously placed $externalOrderId — its current
+     * status, totals and every issued voucher (V2
+     * `orders/{externalOrderId}/complete`). This is what to poll after
+     * {@see self::makeOrderPostponed()} until the vouchers appear.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the order is unknown or the call fails
+     */
+    public function getOrderInfoComplete(string $externalOrderId): OrderDto
+    {
+        return $this->api->getOrderInfoComplete($externalOrderId);
     }
 
     /**

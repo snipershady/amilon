@@ -27,14 +27,18 @@ use Amilon\Exception\InvalidOrderRequestException;
 
 /**
  * Turns a version-neutral {@see CreateOrderRequestDto} into the JSON body the V2
- * `orders/create/{contractId}` endpoint expects:
- * `{"ExternalOrderId": …, "OrderRows": [{"RetailerId": …, "Quantity": …, "Price": …}]}`.
+ * order endpoints expect:
+ * `{"ExternalOrderId": …, "OrderRows": [{"RetailerId": …, "Quantity": …, "Price": …}]}`
+ * for `orders/create/{contractId}`, plus a top-level `"CodeValidityStartDate"`
+ * for `orders/createpostponed/{contractId}`.
  *
  * The V2 shift from V1 lives here: an order row identifies the denomination by
  * `RetailerId` (the merchant `code`) **plus** `Price`, where V1 sent a single
  * `ProductId`. A line with no price cannot describe a V2 order, so this mapper
  * rejects it with {@see InvalidOrderRequestException::missingPrice()} before any
- * HTTP call.
+ * HTTP call; a postponed order whose validity start date is in the past or more
+ * than a month out is likewise rejected with
+ * {@see InvalidOrderRequestException::codeValidityStartDateOutOfRange()}.
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com> aka La Matrigna
  */
@@ -64,6 +68,32 @@ final readonly class OrderRequestMapper
         return [
             'ExternalOrderId' => $createOrderRequestDto->externalOrderId,
             'OrderRows' => $orderRows,
+        ];
+    }
+
+    /**
+     * As {@see self::toPayload()} plus the `CodeValidityStartDate` the postponed
+     * endpoint requires — the date from which the issued codes become valid,
+     * which Amilon accepts only when it is in the future and at most one month
+     * out.
+     *
+     * @return array{ExternalOrderId: non-empty-string, OrderRows: non-empty-list<array{RetailerId: non-empty-string, Quantity: positive-int, Price: float}>, CodeValidityStartDate: string}
+     *
+     * @throws InvalidOrderRequestException when a line carries no price, or the date is past / more than a month out
+     */
+    public function toPostponedPayload(
+        CreateOrderRequestDto $createOrderRequestDto,
+        \DateTimeImmutable $codeValidityStartDate,
+    ): array {
+        $now = new \DateTimeImmutable();
+
+        if ($codeValidityStartDate <= $now || $codeValidityStartDate > $now->add(new \DateInterval('P1M'))) {
+            throw InvalidOrderRequestException::codeValidityStartDateOutOfRange($codeValidityStartDate);
+        }
+
+        return [
+            ...$this->toPayload($createOrderRequestDto),
+            'CodeValidityStartDate' => $codeValidityStartDate->format(\DateTimeInterface::ATOM),
         ];
     }
 }

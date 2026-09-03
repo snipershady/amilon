@@ -92,8 +92,8 @@ foreach ($order->vouchers as $voucher) {
     echo $voucher->voucherLink, PHP_EOL;
 }
 
-// read it back later (status may have advanced, more vouchers may be present)
-$order = $client->getOrderInfo('my-order-001');
+// read it back later — summary only, or ...Complete() for the vouchers too
+$order = $client->getOrderInfoComplete('my-order-001');
 
 // check the spendable balance
 echo $client->getContractInfo()->currentAmount, PHP_EOL;
@@ -156,9 +156,11 @@ the same regardless of which API revision answered. The client currently speaks
 | `getDenominationsComplete(CountryEnum)` | `GET contracts/{id}/{culture}/denominations/complete` | `MerchantDenominationCollectionDto` |
 | `getProducts(CountryEnum)` | `GET contracts/{id}/{culture}/denominations` (reshaped) | `ProductCollectionDto` |
 | `getRetailers(CountryEnum)` | `GET contracts/{id}/{culture}/retailers` | `RetailerCollectionDto` |
+| `getRetailerCategories(?string $categoryId, ?string $categoryName)` | `GET retailers/categories` | `RetailerCategoryCollectionDto` |
 | `makeOrder(CreateOrderRequestDto)` | `POST orders/create/{id}` | `OrderDto` |
-| `makeOrderPostponed(CreateOrderRequestDto)` | `POST orders/createpostponed/{id}` | `OrderDto` |
-| `getOrderInfo(string $externalOrderId)` | `GET orders/{externalOrderId}/complete` | `OrderDto` |
+| `makeOrderPostponed(CreateOrderRequestDto, DateTimeImmutable $codeValidityStartDate)` | `POST orders/createpostponed/{id}` | `OrderDto` |
+| `getOrderInfo(string $externalOrderId)` | `GET orders/{externalOrderId}` | `OrderDto` |
+| `getOrderInfoComplete(string $externalOrderId)` | `GET orders/{externalOrderId}/complete` | `OrderDto` |
 | `getContractInfo()` | `GET contracts/{id}` | `ContractInfoDto` |
 
 Each operation below shows a minimal call and the DTO it returns. The response
@@ -407,6 +409,38 @@ Amilon\Dto\Response\RetailerCollectionDto {
 }
 ```
 
+### `getRetailerCategories(?string $categoryId = null, ?string $categoryName = null)`
+
+The platform-wide list of brand categories and their translated names — useful to
+build a category filter over `getRetailers()` / `getDenominations()`. Not
+contract-scoped; pass `$categoryId` and/or `$categoryName` to narrow it.
+
+```php
+$categories = $client->getRetailerCategories();
+
+foreach ($categories as $category) {
+    echo $category->categoryId, ' => ', $category->categoryName, PHP_EOL;
+}
+```
+
+**Response — `RetailerCategoryCollectionDto`**
+
+```
+Amilon\Dto\Response\RetailerCategoryCollectionDto {
+  // iterable + countable: ->all() ->count() ->isEmpty()
+  -categories: array:2 [
+    0 => Amilon\Dto\Response\RetailerCategoryDto {
+      +categoryId: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+      +categoryName: "Elettronica"
+    }
+    1 => Amilon\Dto\Response\RetailerCategoryDto {
+      +categoryId: "5ba85f64-5717-4562-b3fc-2c963f66afd2"
+      +categoryName: "Libri"
+    }
+  ]
+}
+```
+
 ### `makeOrder(CreateOrderRequestDto)`
 
 Place an order with **immediate** fulfilment. The request is self-contained: your
@@ -441,40 +475,58 @@ foreach ($order->vouchers as $voucher) {
 ```
 Amilon\Dto\Response\OrderDto {
   +externalOrderId: "my-order-001"       // echoed back from the request
-  +orderStatus: "Completed"
+  +orderStatus: "Completed"              // ->status() parses it to Enum\OrderStatus::COMPLETED
   +orderDate: DateTimeImmutable @1773570600 { 2026-03-15 10:30:00.0 UTC (+00:00) }
   +grossAmount: 20.0
   +netAmount: 19.8
+  +totalRequestedCodes: 1
+  +purchaseOrder: "PO-2026-014"
   +vouchers: array:1 [
     0 => Amilon\Dto\Response\VoucherDto {
       +productId: "911d5af7-419b-ed11-b820-005056a53626"
       +retailerId: "f72c8dc7-8feb-4dad-bf66-39c8ed238a2b"
+      +retailerName: "Amazon"
+      +retailerCountry: "Italy"
+      +retailerCountryIsoAlpha3: "ITA"
       +voucherLink: "https://voucher.amilon.eu/abc123"
       +validityStartDate: DateTimeImmutable @1773532800 { 2026-03-15 00:00:00.0 UTC (+00:00) }
       +validityEndDate: DateTimeImmutable @1805068800 { 2027-03-15 00:00:00.0 UTC (+00:00) }
+      +cardCode: "6039 5000 1234 5678"
+      +pin: "4921"
+      +name: "Ada"
+      +surname: "Lovelace"
+      +email: "ada@example.test"
+      +dedication: "Happy birthday!"
+      +orderFrom: "ACME Welfare"
+      +orderTo: "Ada Lovelace"
+      +amount: 20.0
+      +deleted: false
     }
   ]
 }
 ```
 
 > `vouchers` can be `[]` right after the call while Amilon is still issuing them —
-> read the order back with `getOrderInfo()`. `orderDate` and the voucher validity
-> dates are `null` when Amilon omits them or sends something unparseable.
+> read the order back with `getOrderInfoComplete()`. `orderDate` and the voucher
+> validity dates are `null` when Amilon omits them or sends something unparseable.
 
-### `makeOrderPostponed(CreateOrderRequestDto)`
+### `makeOrderPostponed(CreateOrderRequestDto, DateTimeImmutable $codeValidityStartDate)`
 
-Same request and same `OrderDto` back as `makeOrder()`, but fulfilment is
+Same order rows and same `OrderDto` back as `makeOrder()`, but fulfilment is
 **deferred**: Amilon registers the order now and issues the vouchers
-asynchronously, so `vouchers` is normally empty. The confirmation still echoes
-your `externalOrderId` and carries a status — collect the vouchers later with
-`getOrderInfo()`.
+asynchronously, valid from `$codeValidityStartDate`. That date is **mandatory**
+and Amilon only accepts it when it is in the future and at most one month out — a
+date outside that window is rejected with `InvalidOrderRequestException` before
+any HTTP call. `vouchers` is normally empty on the confirmation; collect them
+later with `getOrderInfoComplete()`.
 
 ```php
 $order = $client->makeOrderPostponed(
     CreateOrderRequestDto::singleLineWithPrice('my-order-003', $merchantCode, 1, 20.0),
+    new DateTimeImmutable('+7 days'),
 );
 
-$order->orderStatus;   // e.g. "Pending"
+$order->orderStatus;   // e.g. "Pending"  (->status() is null — not a modelled state)
 $order->vouchers;       // [] — issued later
 ```
 
@@ -487,20 +539,49 @@ Amilon\Dto\Response\OrderDto {
   +orderDate: DateTimeImmutable @1773570600 { 2026-03-15 10:30:00.0 UTC (+00:00) }
   +grossAmount: 20.0
   +netAmount: 19.8
+  +totalRequestedCodes: 1
+  +purchaseOrder: ""
   +vouchers: []
 }
 ```
 
 ### `getOrderInfo(string $externalOrderId)`
 
-Read back an order you placed, keyed by the `externalOrderId` you chose. Same
-`OrderDto` shape as `makeOrder()`; this is how you pick up the vouchers of a
-`makeOrderPostponed()` order once it has been fulfilled.
+Order **summary** for an order you placed, keyed by the `externalOrderId` you
+chose: status and totals, **no vouchers** (`GET orders/{externalOrderId}`). Use
+`getOrderInfoComplete()` when you need the issued vouchers too.
 
 ```php
 $order = $client->getOrderInfo('my-order-003');
 
-if ('Completed' === $order->orderStatus) {
+echo $order->orderStatus, ' — ', $order->totalRequestedCodes, ' code(s)', PHP_EOL;
+```
+
+**Response — `OrderDto`** (`vouchers` is always `[]` from this view)
+
+```
+Amilon\Dto\Response\OrderDto {
+  +externalOrderId: "my-order-003"
+  +orderStatus: "Completed"
+  +orderDate: DateTimeImmutable @1773570600 { 2026-03-15 10:30:00.0 UTC (+00:00) }
+  +grossAmount: 20.0
+  +netAmount: 19.8
+  +totalRequestedCodes: 1
+  +purchaseOrder: "PO-2026-014"
+  +vouchers: []
+}
+```
+
+### `getOrderInfoComplete(string $externalOrderId)`
+
+The **full** order — status, totals and every issued voucher
+(`GET orders/{externalOrderId}/complete`). This is how you pick up the vouchers of
+a `makeOrderPostponed()` order once it has been fulfilled.
+
+```php
+$order = $client->getOrderInfoComplete('my-order-003');
+
+if ($order->status()?->isCompleted()) {
     foreach ($order->vouchers as $voucher) {
         echo $voucher->voucherLink, PHP_EOL;
     }
@@ -516,13 +597,28 @@ Amilon\Dto\Response\OrderDto {
   +orderDate: DateTimeImmutable @1773570600 { 2026-03-15 10:30:00.0 UTC (+00:00) }
   +grossAmount: 20.0
   +netAmount: 19.8
+  +totalRequestedCodes: 1
+  +purchaseOrder: "PO-2026-014"
   +vouchers: array:1 [
     0 => Amilon\Dto\Response\VoucherDto {
       +productId: "911d5af7-419b-ed11-b820-005056a53626"
       +retailerId: "f72c8dc7-8feb-4dad-bf66-39c8ed238a2b"
+      +retailerName: "Amazon"
+      +retailerCountry: "Italy"
+      +retailerCountryIsoAlpha3: "ITA"
       +voucherLink: "https://voucher.amilon.eu/abc123"
       +validityStartDate: DateTimeImmutable @1773532800 { 2026-03-15 00:00:00.0 UTC (+00:00) }
       +validityEndDate: DateTimeImmutable @1805068800 { 2027-03-15 00:00:00.0 UTC (+00:00) }
+      +cardCode: "6039 5000 1234 5678"
+      +pin: "4921"
+      +name: "Ada"
+      +surname: "Lovelace"
+      +email: "ada@example.test"
+      +dedication: "Happy birthday!"
+      +orderFrom: "ACME Welfare"
+      +orderTo: "Ada Lovelace"
+      +amount: 20.0
+      +deleted: false
     }
   ]
 }
@@ -559,17 +655,38 @@ integration:
 | Exception | When |
 | --- | --- |
 | `InvalidConfigurationException` | a credential is missing, blank or malformed (thrown by `create()`, before any HTTP) |
-| `InvalidOrderRequestException` | an order request is malformed — blank id, no lines, blank product code, quantity below 1 (thrown when building the DTO) |
+| `InvalidOrderRequestException` | an order request is malformed — blank id, no lines, blank retailer id, quantity below 1, a v2 line with no price, or a postponed `codeValidityStartDate` that is past / more than a month out (thrown when building the DTO or the request body, before any HTTP) |
 | `AuthenticationException` | the SSO endpoint is unreachable, rejects the credentials, or returns an unusable token |
-| `ApiRequestException` | a resource call fails — transport error, non-2xx status, or a non-JSON body; the message carries a short reason lifted from the error body |
+| `ApiRequestException` | a resource call fails — transport error, non-2xx status, or a non-JSON body |
+
+On a non-2xx status `ApiRequestException` parses the error body
+(`{"ErrorCode": …, "Message": …}`, plus `CreateOrder`'s `ModelErrors`) and
+exposes it:
+
+| Property / method | |
+| --- | --- |
+| `->httpStatus` | the HTTP status code (`int`), or `null` for a transport failure |
+| `->rawErrorCode` | the `ErrorCode` string verbatim (`"0105"`), or `null` — the documented set is **not** exhaustive |
+| `->errorCode` | `Amilon\Enum\AmilonErrorCode` when the code is one the client models, else `null` |
+| `->validationErrors` | `list<string>` — one `"Property: message; message"` line per `ModelErrors` entry |
+| `->isTransient()` | `true` for `0000` / `0500` — the same call can be retried |
 
 ```php
+use Amilon\Enum\AmilonErrorCode;
 use Amilon\Exception\AmilonExceptionInterface;
+use Amilon\Exception\ApiRequestException;
 
 try {
     $order = $client->makeOrder($request);
+} catch (ApiRequestException $e) {
+    if (AmilonErrorCode::INSUFFICIENT_CONTRACT_CREDIT === $e->errorCode) {
+        // top up the contract and retry
+    }
+    if ($e->isTransient()) {
+        // 0000 / 0500 — safe to retry with the same input
+    }
 } catch (AmilonExceptionInterface $e) {
-    // any failure originating from the Amilon integration
+    // any other failure originating from the Amilon integration
 }
 ```
 
