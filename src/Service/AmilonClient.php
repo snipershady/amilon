@@ -144,7 +144,8 @@ final readonly class AmilonClient
     }
 
     /**
-     * Place an order for the products and quantities the request carries.
+     * Place an order for the products and quantities the request carries, with
+     * immediate fulfilment.
      *
      * This spends real money when the client was built from
      * {@see Environment::PRODUCTION} credentials — gate the call on
@@ -156,6 +157,24 @@ final readonly class AmilonClient
     public function makeOrder(CreateOrderRequestDto $createOrderRequestDto): OrderDto
     {
         return $this->api->makeOrder($createOrderRequestDto);
+    }
+
+    /**
+     * Place an order with **deferred** fulfilment (V2 `createpostponed`): Amilon
+     * accepts and registers it now and issues the vouchers asynchronously. The
+     * returned {@see OrderDto} confirms the order and echoes its
+     * `externalOrderId`, but its `vouchers` list is usually still empty — call
+     * {@see self::getOrderInfo()} again later to collect them.
+     *
+     * Like {@see self::makeOrder()} this spends real money on a
+     * {@see Environment::PRODUCTION} client — gate it on {@see self::isProduction()}.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when Amilon rejects the order
+     */
+    public function makeOrderPostponed(CreateOrderRequestDto $createOrderRequestDto): OrderDto
+    {
+        return $this->api->makeOrderPostponed($createOrderRequestDto);
     }
 
     /**

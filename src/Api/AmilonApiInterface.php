@@ -96,12 +96,25 @@ interface AmilonApiInterface
     public function getRetailers(CountryEnum $countryEnum): RetailerCollectionDto;
 
     /**
-     * Place an order for the products and quantities the request carries.
+     * Place an order for the products and quantities the request carries, with
+     * immediate fulfilment.
      *
      * @throws AuthenticationException when the bearer token cannot be obtained
      * @throws ApiRequestException     when Amilon rejects or cannot fulfil the order
      */
     public function makeOrder(CreateOrderRequestDto $createOrderRequestDto): OrderDto;
+
+    /**
+     * Place an order with **deferred** fulfilment (`createpostponed`): Amilon
+     * registers it now and issues the vouchers later. Same request as
+     * {@see self::makeOrder()} and the same {@see OrderDto} back, but its
+     * `vouchers` list is usually still empty — read it again with
+     * {@see self::getOrderInfo()} once fulfilment has run.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when Amilon rejects the order
+     */
+    public function makeOrderPostponed(CreateOrderRequestDto $createOrderRequestDto): OrderDto;
 
     /**
      * Read back an order previously placed under $externalOrderId, including its

@@ -102,6 +102,12 @@ final readonly class V2Api implements AmilonApiInterface
     }
 
     #[\Override]
+    public function makeOrderPostponed(CreateOrderRequestDto $createOrderRequestDto): OrderDto
+    {
+        return $this->orderApi->createPostponed($createOrderRequestDto);
+    }
+
+    #[\Override]
     public function getOrderInfo(string $externalOrderId): OrderDto
     {
         return $this->orderApi->complete($externalOrderId);

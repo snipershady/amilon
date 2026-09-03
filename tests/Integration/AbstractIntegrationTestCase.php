@@ -23,6 +23,9 @@ declare(strict_types=1);
 namespace Amilon\Tests\Integration;
 
 use Amilon\Dto\CredentialDto;
+use Amilon\Dto\Response\DenominationDto;
+use Amilon\Dto\Response\MerchantDenominationCollectionDto;
+use Amilon\Dto\Response\MerchantDenominationsDto;
 use Amilon\Enum\Environment;
 use Amilon\Service\AmilonClient;
 use Amilon\Service\AmilonClientFactory;
@@ -86,6 +89,39 @@ abstract class AbstractIntegrationTestCase extends AbstractTestCase
             contractId: $this->liveValue('AMILON_CONTRACT_ID', 'contractId'),
             environment: Environment::STAGING,
         );
+    }
+
+    /**
+     * The first denomination in the live catalogue that can actually be ordered
+     * — one with an explicit price or an open range — paired with its merchant.
+     * Skips the calling test when the catalogue exposes none.
+     *
+     * @return array{MerchantDenominationsDto, DenominationDto}
+     */
+    final protected function firstOrderableDenomination(MerchantDenominationCollectionDto $merchantDenominationCollectionDto): array
+    {
+        foreach ($merchantDenominationCollectionDto as $merchant) {
+            foreach ($merchant->denominations as $denomination) {
+                if ([] !== $denomination->prices || $denomination->isVariable()) {
+                    return [$merchant, $denomination];
+                }
+            }
+        }
+
+        self::markTestSkipped('the STAGING catalogue exposed no orderable denomination');
+    }
+
+    /**
+     * A face value that {@see self::firstOrderableDenomination()} accepts: the
+     * first listed price, or the low end of an open range.
+     */
+    final protected function pickOrderablePrice(DenominationDto $denominationDto): float
+    {
+        if ([] !== $denominationDto->prices) {
+            return $denominationDto->prices[0]->price;
+        }
+
+        return $denominationDto->rangeMin ?? 5.0;
     }
 
     private function liveValue(string $envKey, string $argument): string

@@ -136,6 +136,7 @@ the same regardless of which API revision answered. The client currently speaks
 | `getProducts(CountryEnum)` | `GET contracts/{id}/{culture}/denominations` (reshaped) | `ProductCollectionDto` |
 | `getRetailers(CountryEnum)` | `GET contracts/{id}/{culture}/retailers` | `RetailerCollectionDto` |
 | `makeOrder(CreateOrderRequestDto)` | `POST orders/create/{id}` | `OrderDto` |
+| `makeOrderPostponed(CreateOrderRequestDto)` | `POST orders/createpostponed/{id}` | `OrderDto` |
 | `getOrderInfo(string $externalOrderId)` | `GET orders/{externalOrderId}/complete` | `OrderDto` |
 | `getContractInfo()` | `GET contracts/{id}` | `ContractInfoDto` |
 
@@ -179,8 +180,16 @@ the same regardless of which API revision answered. The client currently speaks
   `orderDate`, `grossAmount`, `netAmount`, and `vouchers` (a list of `VoucherDto`
   — `voucherLink`, validity window, product and retailer ids). `vouchers` may be
   empty right after the call while the order is processing.
+- **`makeOrderPostponed()`** — same request as `makeOrder()` (`CreateOrderRequestDto`,
+  same validation) and the same `OrderDto` back, but fulfilment is **deferred**:
+  Amilon registers the order now and issues the vouchers asynchronously, so the
+  returned `vouchers` list is normally empty. The confirmation still echoes your
+  `externalOrderId` and carries the status — call `getOrderInfo()` later to collect
+  the vouchers. Hits `POST orders/createpostponed/{contractId}`.
 - **`getOrderInfo()`** — the current state of an order you placed, keyed by the
-  `externalOrderId` you chose. Same `OrderDto` shape as `makeOrder()`.
+  `externalOrderId` you chose. Same `OrderDto` shape as `makeOrder()`; this is how
+  you pick up the vouchers of a `makeOrderPostponed()` order once it has been
+  fulfilled.
 - **`getContractInfo()`** — `ContractInfoDto` with `contractId`, `currentAmount`
   (the spendable balance orders draw down) and `lastUpdate`.
 

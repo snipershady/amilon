@@ -23,8 +23,6 @@ declare(strict_types=1);
 namespace Amilon\Tests\Integration\Api\V2;
 
 use Amilon\Dto\Request\CreateOrderRequestDto;
-use Amilon\Dto\Response\DenominationDto;
-use Amilon\Dto\Response\MerchantDenominationsDto;
 use Amilon\Enum\CountryEnum;
 use Amilon\Tests\Integration\AbstractIntegrationTestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -50,46 +48,18 @@ final class MakeOrderIntegrationTest extends AbstractIntegrationTestCase
 
         $client = $this->liveStagingClient();
 
-        [$merchant, $denomination] = $this->firstOrderableDenomination($client->getDenominations(CountryEnum::IT)->all());
+        [$merchant, $denomination] = $this->firstOrderableDenomination($client->getDenominations(CountryEnum::IT));
 
         $externalOrderId = 'amilon-lib-it-' . bin2hex(random_bytes(8));
-        // dump($externalOrderId);
         $confirmation = $client->makeOrder(CreateOrderRequestDto::singleLineWithPrice(
             $externalOrderId,
             $merchant->code,
             1,
-            $this->pickPrice($denomination),
+            $this->pickOrderablePrice($denomination),
         ));
 
         $this->assertSame($externalOrderId, $confirmation->externalOrderId);
         $this->assertNotSame('', $confirmation->orderStatus);
         $this->assertGreaterThanOrEqual(0.0, $confirmation->grossAmount);
-    }
-
-    /**
-     * @param list<MerchantDenominationsDto> $merchants
-     *
-     * @return array{MerchantDenominationsDto, DenominationDto}
-     */
-    private function firstOrderableDenomination(array $merchants): array
-    {
-        foreach ($merchants as $merchant) {
-            foreach ($merchant->denominations as $denomination) {
-                if ([] !== $denomination->prices || $denomination->isVariable()) {
-                    return [$merchant, $denomination];
-                }
-            }
-        }
-
-        self::markTestSkipped('the STAGING IT catalogue exposed no orderable denomination');
-    }
-
-    private function pickPrice(DenominationDto $denominationDto): float
-    {
-        if ([] !== $denominationDto->prices) {
-            return $denominationDto->prices[0]->price;
-        }
-
-        return $denominationDto->rangeMin ?? 5.0;
     }
 }
