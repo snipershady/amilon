@@ -2,6 +2,7 @@
 /.env export-ignore
 /rector.php export-ignore
 /README.md export-ignore
+/REQUEST.md export-ignore
 /phpstan.dist.neon export-ignore
 /phpunit.xml export-ignore
 /.php-cs-fixer.dist.php export-ignore
