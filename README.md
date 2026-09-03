@@ -282,6 +282,8 @@ carries its editorial `->extendedContent` block (long copy, extra logo sizes,
 category ids).
 
 ```php
+use Amilon\Enum\CountryEnum;
+
 $merchants = $client->getDenominationsComplete(CountryEnum::IT);
 
 $content = $merchants->all()[0]->extendedContent;   // MerchantContentDto
@@ -322,6 +324,8 @@ synthesised `"{merchant} - {amount} {symbol}"`. **New code should use
 `getDenominations()`.**
 
 ```php
+use Amilon\Enum\CountryEnum;
+
 $products = $client->getProducts(CountryEnum::IT);
 
 foreach ($products as $product) {
@@ -366,6 +370,8 @@ Amilon\Dto\Response\ProductCollectionDto {
 The retailers (brands) available to the contract in a country.
 
 ```php
+use Amilon\Enum\CountryEnum;
+
 $retailers = $client->getRetailers(CountryEnum::IT);
 
 foreach ($retailers as $retailer) {
