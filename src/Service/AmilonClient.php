@@ -29,6 +29,7 @@ use Amilon\Dto\Response\AccessTokenDto;
 use Amilon\Dto\Response\ContractInfoDto;
 use Amilon\Dto\Response\MerchantDenominationCollectionDto;
 use Amilon\Dto\Response\OrderDto;
+use Amilon\Dto\Response\ProductCollectionDto;
 use Amilon\Dto\Response\RetailerCollectionDto;
 use Amilon\Enum\CountryEnum;
 use Amilon\Enum\Environment;
@@ -109,6 +110,26 @@ final readonly class AmilonClient
     public function getDenominationsComplete(CountryEnum $countryEnum): MerchantDenominationCollectionDto
     {
         return $this->api->getDenominationsComplete($countryEnum);
+    }
+
+    /**
+     * V1-compatible flat catalogue: the same data as {@see self::getDenominations()}
+     * reshaped into the {@see ProductCollectionDto} of
+     * {@see \Amilon\Dto\Response\ProductDto} that V1's `getProducts()` returned,
+     * so an integration written against the V1 surface upgrades without code
+     * changes. Each denomination price point becomes one product row; a variable
+     * (open-range) denomination becomes a single row priced at its `rangeMin`
+     * with the range carried across. `active` / `visible` are always `true` and
+     * `name` is synthesised as `"{merchant} - {amount} {symbol}"`.
+     *
+     * Prefer {@see self::getDenominations()} for new code.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the catalogue call itself fails
+     */
+    public function getProducts(CountryEnum $countryEnum): ProductCollectionDto
+    {
+        return $this->api->getProducts($countryEnum);
     }
 
     /**

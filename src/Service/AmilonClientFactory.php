@@ -26,6 +26,7 @@ use Amilon\Api\AmilonApiInterface;
 use Amilon\Api\ApiVersion;
 use Amilon\Api\V2\Catalog\DenominationApi;
 use Amilon\Api\V2\Catalog\DenominationMapper;
+use Amilon\Api\V2\Catalog\ProductCompatMapper;
 use Amilon\Api\V2\Catalog\RetailerApi;
 use Amilon\Api\V2\Catalog\RetailerMapper;
 use Amilon\Api\V2\Contract\ContractApi;
@@ -135,6 +136,7 @@ final class AmilonClientFactory
                 new OrderMapper($effectivePrimitiveTypeIdentifierService),
             ),
             new ContractApi($executor, $configuration, new ContractMapper($effectivePrimitiveTypeIdentifierService)),
+            new ProductCompatMapper(),
         );
     }
 

@@ -10,8 +10,9 @@ automate the ordering, management and distribution of digital gift cards at scal
 ## Status
 
 **Early development.** The client covers authentication and the first resource
-operations — products, retailers, order creation, order read-back and contract
-balance. The public surface is stable; more operations will be added the same way.
+operations — catalogue denominations (with a V1-compatible flat `getProducts()`
+view), retailers, order creation, order read-back and contract balance. The
+public surface is stable; more operations will be added the same way.
 
 ## Requirements
 
@@ -132,6 +133,7 @@ the same regardless of which API revision answered. The client currently speaks
 | `getToken()` | `POST {authDomain}connect/token` | `AccessTokenDto` |
 | `getDenominations(CountryEnum)` | `GET contracts/{id}/{culture}/denominations` | `MerchantDenominationCollectionDto` |
 | `getDenominationsComplete(CountryEnum)` | `GET contracts/{id}/{culture}/denominations/complete` | `MerchantDenominationCollectionDto` |
+| `getProducts(CountryEnum)` | `GET contracts/{id}/{culture}/denominations` (reshaped) | `ProductCollectionDto` |
 | `getRetailers(CountryEnum)` | `GET contracts/{id}/{culture}/retailers` | `RetailerCollectionDto` |
 | `makeOrder(CreateOrderRequestDto)` | `POST orders/create/{id}` | `OrderDto` |
 | `getOrderInfo(string $externalOrderId)` | `GET orders/{externalOrderId}/complete` | `OrderDto` |
@@ -152,6 +154,19 @@ the same regardless of which API revision answered. The client currently speaks
   `isFixed()`, `isVariable()`, `hasContractPriceOverride()`.
   `getDenominationsComplete()` also fills `->extendedContent` with a
   `MerchantContentDto` (long copy, extra logo sizes, category ids).
+- **`getProducts()`** — a **backward-compatibility view of `getDenominations()`**
+  for integrations written against the pre-v2 surface: it makes the same call and
+  flattens the merchant → denomination → price tree into the old flat
+  `ProductCollectionDto` (iterable/countable) of `ProductDto`. Each denomination
+  price point becomes one row; a variable (open-range) denomination becomes a
+  single row priced at its `rangeMin` with `rangeMin` / `rangeMax` / `step`
+  carried across. `ProductDto` keeps the original seven fields unchanged —
+  `productCode` (the denomination code), `merchantCode`, `name` (synthesised
+  `"{merchant} - {amount} {symbol}"`), `price`, `imageUrl`, `active`, `visible`
+  (the last two are always `true`; v2 has no such flags) — and adds `netPrice`,
+  `discountValue`, `currency`, `currencySymbol`, `rangeMin` / `rangeMax` / `step`,
+  `activationDate`, `merchantName`, `countryIsoAlpha3`. **New code should use
+  `getDenominations()`.**
 - **`getRetailers()`** — a `RetailerDto` has `retailerId`, `name`,
   `shortDescription`, `imageUrl`, `codeValidityMonths`, `countryIsoAlpha3`.
 - **`makeOrder()`** — takes a self-contained `CreateOrderRequestDto`: your own
@@ -201,6 +216,10 @@ try {
 - **Shared response DTOs.** Each revision's mapper absorbs its own wire quirks
   (PascalCase keys, numbers as strings, `0`/`1` booleans) and produces the same
   `Amilon\Dto\Response\` types, so callers never see a version-specific shape.
+- **Backward-compatible shims stay in the surface.** When v2 reshaped the
+  catalogue (`getProducts()` → the merchant-grouped `getDenominations()`),
+  `getProducts()` was kept as an adapter that reprojects the new response into
+  the old flat DTO, so an existing integration upgrades without code changes.
 - **No shared state.** Each `create()` call returns an independent client with its
   own HTTP transports; the OAuth token lives in memory for that client's lifetime
   only — there is no external cache.

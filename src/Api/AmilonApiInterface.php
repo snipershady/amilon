@@ -27,6 +27,7 @@ use Amilon\Dto\Response\AccessTokenDto;
 use Amilon\Dto\Response\ContractInfoDto;
 use Amilon\Dto\Response\MerchantDenominationCollectionDto;
 use Amilon\Dto\Response\OrderDto;
+use Amilon\Dto\Response\ProductCollectionDto;
 use Amilon\Dto\Response\RetailerCollectionDto;
 use Amilon\Enum\CountryEnum;
 use Amilon\Exception\ApiRequestException;
@@ -72,6 +73,19 @@ interface AmilonApiInterface
      * @throws ApiRequestException     when the catalogue call itself fails
      */
     public function getDenominationsComplete(CountryEnum $countryEnum): MerchantDenominationCollectionDto;
+
+    /**
+     * V1-compatible view of {@see self::getDenominations()}: the merchant →
+     * denomination → price tree flattened back into the flat
+     * {@see ProductCollectionDto} of {@see \Amilon\Dto\Response\ProductDto} that
+     * V1's `getProducts()` returned, so an integration written against the V1
+     * surface keeps working. Not a distinct endpoint — it makes the same
+     * `denominations` call and reshapes the result.
+     *
+     * @throws AuthenticationException when the bearer token cannot be obtained
+     * @throws ApiRequestException     when the catalogue call itself fails
+     */
+    public function getProducts(CountryEnum $countryEnum): ProductCollectionDto;
 
     /**
      * The retailers (brands) available to the contract in $country.

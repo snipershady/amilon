@@ -53,7 +53,7 @@ final class MakeOrderIntegrationTest extends AbstractIntegrationTestCase
         [$merchant, $denomination] = $this->firstOrderableDenomination($client->getDenominations(CountryEnum::IT)->all());
 
         $externalOrderId = 'amilon-lib-it-' . bin2hex(random_bytes(8));
-        dump($externalOrderId);
+        // dump($externalOrderId);
         $confirmation = $client->makeOrder(CreateOrderRequestDto::singleLineWithPrice(
             $externalOrderId,
             $merchant->code,

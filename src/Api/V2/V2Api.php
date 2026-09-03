@@ -24,6 +24,7 @@ namespace Amilon\Api\V2;
 
 use Amilon\Api\AmilonApiInterface;
 use Amilon\Api\V2\Catalog\DenominationApi;
+use Amilon\Api\V2\Catalog\ProductCompatMapper;
 use Amilon\Api\V2\Catalog\RetailerApi;
 use Amilon\Api\V2\Contract\ContractApi;
 use Amilon\Api\V2\Order\OrderApi;
@@ -33,6 +34,7 @@ use Amilon\Dto\Response\AccessTokenDto;
 use Amilon\Dto\Response\ContractInfoDto;
 use Amilon\Dto\Response\MerchantDenominationCollectionDto;
 use Amilon\Dto\Response\OrderDto;
+use Amilon\Dto\Response\ProductCollectionDto;
 use Amilon\Dto\Response\RetailerCollectionDto;
 use Amilon\Enum\CountryEnum;
 
@@ -59,6 +61,7 @@ final readonly class V2Api implements AmilonApiInterface
         private RetailerApi $retailerApi,
         private OrderApi $orderApi,
         private ContractApi $contractApi,
+        private ProductCompatMapper $productCompatMapper,
     ) {
     }
 
@@ -78,6 +81,12 @@ final readonly class V2Api implements AmilonApiInterface
     public function getDenominationsComplete(CountryEnum $countryEnum): MerchantDenominationCollectionDto
     {
         return $this->denominationApi->listComplete($countryEnum);
+    }
+
+    #[\Override]
+    public function getProducts(CountryEnum $countryEnum): ProductCollectionDto
+    {
+        return $this->productCompatMapper->flatten($this->denominationApi->list($countryEnum));
     }
 
     #[\Override]
