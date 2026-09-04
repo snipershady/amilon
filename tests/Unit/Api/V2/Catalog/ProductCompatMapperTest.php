@@ -70,6 +70,32 @@ final class ProductCompatMapperTest extends AbstractTestCase
         $this->assertSame('IdeaShopping', $first->merchantName);
     }
 
+    public function testTheParentMerchantBlockIsCopiedOntoEveryRow(): void
+    {
+        $products = $this->mapper->flatten($this->collectionOf(
+            $this->merchant('M-1', imageUrl: 'https://cdn.example/logo.png', denominations: [
+                $this->denomination('D-5', prices: [new DenominationPriceDto(5.0, 4.95)]),
+                $this->denomination('D-10', prices: [new DenominationPriceDto(10.0, 9.9)]),
+            ]),
+        ))->all();
+
+        foreach ($products as $product) {
+            $this->assertSame('M-1', $product->merchantCode);
+            $this->assertSame('Italy', $product->merchantCountry);
+            $this->assertSame('ITA', $product->countryIsoAlpha3);
+            $this->assertSame('https://cdn.example/logo.png', $product->merchantImageUrl);
+            $this->assertSame('short', $product->merchantShortDescription);
+            $this->assertSame('long', $product->merchantLongDescription);
+            $this->assertSame('ideashopping-ita', $product->merchantSlug);
+            $this->assertSame('Euro', $product->currency);
+            $this->assertSame('Sconto fisso per Retailer', $product->rebateTypeName);
+            $this->assertEqualsWithDelta(0.0, $product->vatValue, PHP_FLOAT_EPSILON);
+            $this->assertSame('FC IVA art. 6-quater', $product->vatValueName);
+            $this->assertSame('Voucher', $product->productType);
+            $this->assertFalse($product->art100);
+        }
+    }
+
     public function testVariableDenominationBecomesOneRangedProduct(): void
     {
         $products = $this->mapper->flatten($this->collectionOf(

@@ -50,7 +50,27 @@ final class GetProductsIntegrationTest extends AbstractIntegrationTestCase
             $this->assertGreaterThanOrEqual(0.0, $product->price);
             $this->assertTrue($product->active);
             $this->assertTrue($product->visible);
+            $this->assertSame('Voucher', $product->productType);
         }
+    }
+
+    public function testEveryRowCarriesTheParentMerchantBlock(): void
+    {
+        $client = $this->liveStagingClient();
+
+        $products = $client->getProducts(CountryEnum::IT);
+        $this->assertNotSame([], $products->all());
+
+        $withMerchantCountry = 0;
+        foreach ($products as $product) {
+            $this->assertNotSame('', $product->merchantName);
+            $this->assertNotSame('', $product->merchantSlug);
+            $this->assertNotSame('', $product->currency);
+            $this->assertNotSame('', $product->vatValueName);
+            $withMerchantCountry += '' !== $product->merchantCountry ? 1 : 0;
+        }
+
+        $this->assertGreaterThan(0, $withMerchantCountry, 'the merchant block must reach the flattened rows');
     }
 
     public function testFlattenedRowsStayLinkedToTheDenominationMerchants(): void
@@ -96,6 +116,16 @@ final class GetProductsIntegrationTest extends AbstractIntegrationTestCase
   }
   +merchantName: "Carrefour"
   +countryIsoAlpha3: "ESP"
+  +merchantCountry: "Italy"
+  +merchantImageUrl: "https://eurob2b.amilon.eu/b2bfiles/retailers/f72c8dc7-8feb-4dad-bf66-39c8ed238a2b/logo/aeab1a64727b4603935e257d25cf07cb.png"
+  +merchantShortDescription: "Carrefour, la spesa quotidiana e molto altro."
+  +merchantLongDescription: "<p>...</p>"
+  +merchantSlug: "carrefour-ita"
+  +rebateTypeName: "Sconto fisso per Retailer"
+  +vatValue: 0.0
+  +vatValueName: "FC IVA art. 6-quater"
+  +productType: "Voucher"
+  +art100: false
 }
 
  */

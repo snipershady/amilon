@@ -35,7 +35,7 @@ absolute URL.
 | Placeholder | Source | Normalisation | Example |
 | --- | --- | --- | --- |
 | `{contractId}` | `AMILON_CONTRACT_ID` | lower-cased, must be a UUID | `1ab2c3d4-567e-4b0c-b8da-a3ed94ae6392` |
-| `{culture}` | `CountryEnum` argument | enum value | `it-IT` (IT) · `es-ES` (ES) |
+| `{culture}` | `CountryEnum` argument | enum value | `it-IT` (IT) · `da-DK` (DK) · `de-DE` (DE) · `en-GB` (GB) · `es-ES` (ES) · `fr-FR` (FR) · `nl-NL` (NL) · `nn-NO` (NO) · `pl-PL` (PL) · `pt-PT` (PT) · `sv-SE` (SE) |
 | `{externalOrderId}` | caller argument | `rawurlencode()` | `my-order-001` |
 
 The examples below use the STAGING hosts and a Carrefour merchant code

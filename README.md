@@ -194,7 +194,9 @@ Amilon\Dto\Response\AccessTokenDto {
 ### `getDenominations(CountryEnum)`
 
 The merchants and their gift-card denominations the contract can sell in a
-country (`CountryEnum::IT`, `CountryEnum::ES`). The result is iterable and
+country (`CountryEnum` — `IT`, `ES`, `DE`, `DK`, `FR`, `GB`, `NL`, `NO`, `PL`,
+`PT`, `SE`; the case is the country, the value the API `language-COUNTRY`
+culture tag). The result is iterable and
 countable — `->all()`, `->count()`, `->isEmpty()`. Each merchant `code` is what
 you pass to `makeOrder()` as the retailer id.
 
@@ -343,9 +345,11 @@ merchant → denomination → price tree into the old flat `ProductCollectionDto
 (iterable/countable) of `ProductDto`. One row per price point; a variable
 (open-range) denomination becomes a single row priced at its `rangeMin` with the
 range carried across; a denomination with neither prices nor range is dropped.
-`active` / `visible` are always `true` (v2 has no such flags) and `name` is
-synthesised `"{merchant} - {amount} {symbol}"`. **New code should use
-`getDenominations()`.**
+`active` / `visible` are always `true` (v2 has no such flags), `productType` is a
+constant `"Voucher"`, `art100` is always `false`, and `name` is synthesised
+`"{merchant} - {amount} {symbol}"`. Every row also carries the parent merchant
+block V1's product row had (`merchant*`, `rebateTypeName`, `vatValue*`), copied
+off the owning denomination merchant. **New code should use `getDenominations()`.**
 
 ```php
 use Amilon\Enum\CountryEnum;
@@ -368,7 +372,7 @@ Amilon\Dto\Response\ProductCollectionDto {
       +merchantCode: "f72c8dc7-8feb-4dad-bf66-39c8ed238a2b"  // == MerchantDenominationsDto->code
       +name: "Carrefour - 20,00 €"                           // synthesised
       +price: 20.0
-      +imageUrl: "https://eurob2b.amilon.eu/b2bfiles/products/8f42058d-.../logo/d1ded420.png"
+      +imageUrl: "https://eurob2b.amilon.eu/b2bfiles/products/8f42058d-.../logo/d1ded420.png" // denomination art, merchant-logo fallback
       +active: true                                          // always true
       +visible: true                                         // always true
       +netPrice: 19.8
@@ -379,8 +383,20 @@ Amilon\Dto\Response\ProductCollectionDto {
       +rangeMax: null
       +step: null
       +activationDate: DateTimeImmutable @1674497920 { 2023-01-23 18:18:40.0 UTC (+00:00) }
+      // ── legacy merchant block: copied onto every row from the parent MerchantDenominationsDto,
+      //    the same fields V1's product row carried ──
       +merchantName: "Carrefour"
-      +countryIsoAlpha3: "ESP"
+      +countryIsoAlpha3: "ESP"                               // == MerchantCountryISOAlpha3
+      +merchantCountry: "Italy"                              // == MerchantCountry
+      +merchantImageUrl: "https://eurob2b.amilon.eu/b2bfiles/retailers/f72c8dc7-.../logo/aeab1a64.png" // pure merchant logo
+      +merchantShortDescription: "Carrefour, la spesa quotidiana e molto altro."
+      +merchantLongDescription: "<p>...</p>"                  // HTML
+      +merchantSlug: "carrefour-ita"
+      +rebateTypeName: "Sconto fisso per Retailer"
+      +vatValue: 0.0                                         // int % as float
+      +vatValueName: "FC IVA art. 6-quater"
+      +productType: "Voucher"                                // constant (V2 has no product type)
+      +art100: false                                         // always false (V2 dropped the flag)
       // isVariablePriced() => false
     }
     // a variable denomination collapses to ONE row: price == rangeMin, rangeMin/rangeMax/step

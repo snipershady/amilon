@@ -33,8 +33,12 @@ namespace Amilon\Dto\Response;
  *
  *  - the first seven properties (`productCode` … `visible`) carry their V1
  *    meaning and types verbatim;
- *  - the remaining properties are V2-only extra signal — absent from V1, so a
- *    V1-era caller simply never reads them.
+ *  - the remaining properties are extra signal — the merchant block V1's product
+ *    row also carried (`merchant*`, `currency`, `rebateTypeName`, `vatValue*`,
+ *    `productType`), copied onto every row from the parent
+ *    {@see MerchantDenominationsDto}, plus the V2-only denomination fields
+ *    (`netPrice`, `discountValue`, `range*`, …). A V1-era caller keeps reading
+ *    whichever it used; the rest default and are harmless.
  *
  * Notes on the reconstruction:
  *
@@ -43,6 +47,11 @@ namespace Amilon\Dto\Response;
  *    denomination share the same `productCode`, one per price point.
  *  - `name` is synthesised (`"{merchant} - {amount} {symbol}"`); the raw merchant
  *    name is in {@see self::$merchantName}.
+ *  - `imageUrl` is the denomination artwork, falling back to the merchant logo
+ *    when the denomination has none; the pure merchant logo is always in
+ *    {@see self::$merchantImageUrl}.
+ *  - `productType` is a constant `'Voucher'` — the only product type this API
+ *    sells — and `art100` is always `false`: V2 dropped both flags.
  *  - `active` / `visible` are always `true`: V2 exposes no such flags and only
  *    lists sellable denominations.
  *  - a variable (open-range) denomination yields a single row with `price` set to
@@ -74,6 +83,16 @@ final readonly class ProductDto
         public ?\DateTimeImmutable $activationDate = null,
         public string $merchantName = '',
         public string $countryIsoAlpha3 = '',
+        public string $merchantCountry = '',
+        public string $merchantImageUrl = '',
+        public string $merchantShortDescription = '',
+        public string $merchantLongDescription = '',
+        public string $merchantSlug = '',
+        public string $rebateTypeName = '',
+        public float $vatValue = 0.0,
+        public string $vatValueName = '',
+        public string $productType = 'Voucher',
+        public bool $art100 = false,
     ) {
     }
 

@@ -39,6 +39,11 @@ use Amilon\Dto\Response\ProductDto;
  * scalar coercion has happened upstream in {@see DenominationMapper} — so it
  * needs no `typeidentifier` collaborator.
  *
+ * Each row also carries the parent merchant block V1's product row had —
+ * `merchantCountry` / `merchantImageUrl` / `merchantShortDescription` /
+ * `merchantLongDescription` / `merchantSlug` / `rebateTypeName` / `vatValue` /
+ * `vatValueName` — copied straight off {@see MerchantDenominationsDto}.
+ *
  * One denomination becomes:
  *
  *  - one {@see ProductDto} per {@see \Amilon\Dto\Response\DenominationPriceDto}
@@ -127,6 +132,14 @@ final readonly class ProductCompatMapper
             activationDate: $denominationDto->activationDate,
             merchantName: $merchantDenominationsDto->name,
             countryIsoAlpha3: $merchantDenominationsDto->countryIsoAlpha3,
+            merchantCountry: $merchantDenominationsDto->country,
+            merchantImageUrl: $merchantDenominationsDto->imageUrl,
+            merchantShortDescription: $merchantDenominationsDto->shortDescription,
+            merchantLongDescription: $merchantDenominationsDto->longDescription,
+            merchantSlug: $merchantDenominationsDto->slug,
+            rebateTypeName: $merchantDenominationsDto->rebateTypeName,
+            vatValue: $merchantDenominationsDto->vatValue,
+            vatValueName: $merchantDenominationsDto->vatValueName,
         );
     }
 

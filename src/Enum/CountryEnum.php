@@ -24,12 +24,25 @@ namespace Amilon\Enum;
 
 /**
  * A market Amilon serves, as the `culture` path segment its catalogue endpoints
- * expect (`contracts/{id}/{culture}/products`).
+ * expect (`contracts/{id}/{culture}/denominations`).
+ *
+ * The case name is the ISO 3166-1 alpha-2 country; the backing value is the
+ * `language-COUNTRY` culture tag the API wants, which is not always derivable
+ * from the country (`GB` → `en-GB`, `NO` → `nn-NO`, `DK` → `da-DK`).
  *
  * @author Stefano Perrini <perrini.stefano@gmail.com>
  */
 enum CountryEnum: string
 {
-    case IT = 'it-IT';
-    case ES = 'es-ES';
+    case DE = 'de-DE'; // Deutsch
+    case DK = 'da-DK'; // Danish
+    case ES = 'es-ES'; // Spanish
+    case FR = 'fr-FR'; // Français
+    case GB = 'en-GB'; // English
+    case IT = 'it-IT'; // Italian
+    case NL = 'nl-NL'; // Dutch
+    case NO = 'nn-NO'; // Norwegian
+    case PL = 'pl-PL'; // Polish
+    case PT = 'pt-PT'; // Português
+    case SE = 'sv-SE'; // Swedish
 }
